@@ -1,1 +1,1 @@
-# Stock-app-truora
+# Stock-app
