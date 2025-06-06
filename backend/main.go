@@ -51,7 +51,7 @@ func main() {
 	}
 
 	// Solo ahora consultar todas las páginas de la API
-	items, err := FetchAll(ctx, apiCfg)
+	items, err := FetchAll(ctx, apiCfg, apiCfg.AVAPIKey)
 	if err != nil {
 		log.Fatalf("Error al extraer datos: %v", err)
 	}
