@@ -1,5 +1,5 @@
 <template>
-    <div :class="cn('p-6', props.class)"> <!-- Added default padding -->
+    <div :class="cn('p-6', props.class)"> 
       <slot />
     </div>
   </template>

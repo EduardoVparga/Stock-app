@@ -1,63 +1,68 @@
 <template>
-    <div class="container mx-auto py-6 px-4 md:px-0">
-      <header class="mb-8 text-center">
-        <h1 class="text-4xl font-bold text-primary">StockAction Insights</h1>
-        <p class="text-muted-foreground mt-2 text-lg">
-          Track and analyze stock rating changes from various brokerages.
-        </p>
-      </header>
-  
-      <TopRankedStocks 
-        v-if="topRankedStocks.length > 0"
-        :stocks="topRankedStocks" 
-        @stockSelect="handleRowClick"
-        class="mb-8"
-      />
-  
-      <StockActionFilters
-        :search-term="searchTerm"
-        @update:searchTerm="searchTerm = $event"
-        :selected-action="selectedAction"
-        @update:selectedAction="selectedAction = $event"
-        :selected-brokerage="selectedBrokerage"
-        @update:selectedBrokerage="selectedBrokerage = $event"
-        :date-range="dateRange"
-        @update:dateRange="dateRange = $event"
-        :action-types="actionTypes"
-        :brokerage-firms="brokerageFirms"
-        @clearFilters="clearFilters"
-      />
-  
-      <div class="mt-8">
+  <div class="container mx-auto py-10 px-4 md:px-0">
+    <header class="mb-8">
+      <h1 class="text-4xl font-bold text-foreground">Equity Pulse</h1>
+    </header>
+
+    <div class="space-y-8">
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Top Movers</h2>
+        <TopRankedStocks 
+          v-if="topRankedStocks.length > 0"
+          :stocks="topRankedStocks"
+          @stockSelect="handleRowClick"
+        />
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Quick Filters</h2>
+        <StockActionFilters
+          :search-term="searchTerm"
+          @update:searchTerm="searchTerm = $event"
+          :selected-action="selectedAction"
+          @update:selectedAction="selectedAction = $event"
+          :selected-brokerage="selectedBrokerage"
+          @update:selectedBrokerage="selectedBrokerage = $event"
+          :date-range="dateRange"
+          @update:dateRange="dateRange = $event"
+          :action-types="actionTypes"
+          :brokerage-firms="brokerageFirms"
+          @clearFilters="clearFilters"
+        />
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Ratings Grid</h2>
         <StockActionsTable
           :columns="columns"
           :data="filteredData"
           :on-row-click="handleRowClick"
         />
       </div>
-  
-      <StockDetailModal
-        :stock-action="selectedStockAction"
-        :is-open="isModalOpen"
-        @update:isOpen="isModalOpen = $event"
-      />
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+
+    <StockDetailModal
+      :stock-action="selectedStockAction"
+      :is-open="isModalOpen"
+      @update:isOpen="isModalOpen = $event"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { ref, computed } from 'vue'
   import type { StockAction } from "@/types/stock-action"
   import StockActionsTable from "./StockActionsTable.vue"
   import { columns } from "./columns"
   import StockActionFilters from "./StockActionFilters.vue"
   import StockDetailModal from "./StockDetailModal.vue"
   import TopRankedStocks from './TopRankedStocks.vue'
+
   interface DateRange {
     from?: Date
     to?: Date
   }
-  
-  
+    
   interface StockActionsClientProps {
     initialData: StockAction[]
   }
@@ -144,5 +149,4 @@
     selectedBrokerage.value = "";
     dateRange.value = undefined;
   };
-  
-  </script>
+</script>

@@ -15,8 +15,8 @@
   
   interface Props {
     open: boolean;
-    dialogClass?: string; // For styling the inner dialog panel
-    persistent?: boolean; // If true, clicking overlay doesn't close
+    dialogClass?: string; 
+    persistent?: boolean; 
   }
   const props = defineProps<Props>();
   const emit = defineEmits(['update:open']);

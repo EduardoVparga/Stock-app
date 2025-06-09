@@ -1,118 +1,3 @@
-# file name: src/components/stock-actions/columns.ts ------------------------------------------
-// src/components/stock-actions/columns.ts
-import { h } from 'vue'
-import type { ColumnDef } from "@tanstack/vue-table"
-import { format } from "date-fns"
-import { ArrowUpDown } from "lucide-vue-next"
-
-import type { StockAction } from "@/types/stock-action"
-import Button from "@/components/ui/Button.vue" // Vue Button
-import Badge from "@/components/ui/Badge.vue"   // Vue Badge
-import { formatPrice } from "@/lib/utils"
-
-export const columns: ColumnDef<StockAction>[] = [
-  {
-    accessorKey: "time",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Date',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("time"))
-      return h('div', { class: 'text-sm' }, format(date, "MMM dd, yyyy"))
-    },
-    // Enable sorting for this column if desired
-    enableSorting: true,
-  },
-  {
-    accessorKey: "brokerage",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Brokerage',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => h('div', { class: 'text-sm' }, row.getValue("brokerage")),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "ticker",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Ticker',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => h(Badge, { variant: "secondary" }, () => row.getValue("ticker")),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "company",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Company',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => h('div', { class: 'font-medium text-sm' }, row.getValue("company")),
-    enableSorting: true,
-  },
-  {
-    accessorKey: "action",
-    header: "Action",
-    cell: ({ row }) => h('div', { class: 'capitalize text-sm' }, row.getValue("action")),
-  },
-  {
-    id: "ratingChange",
-    header: "Rating",
-    cell: ({ row }) => {
-      const ratingFrom = row.original.rating_from || "N/A"
-      const ratingTo = row.original.rating_to
-      return h('div', { class: 'text-sm whitespace-nowrap' }, `${ratingFrom} → ${ratingTo}`)
-    },
-  },
-  {
-    id: "priceTargetChange",
-    header: "Price Target",
-    cell: ({ row }) => {
-      const targetFrom = row.original.target_from
-      const targetTo = row.original.target_to
-
-      const formattedFrom = formatPrice(targetFrom)
-      const formattedTo = formatPrice(targetTo)
-      
-      let colorClass = "text-foreground" // Default color
-      if (targetTo !== null && targetFrom !== null) {
-        if (targetTo > targetFrom) {
-          colorClass = "text-green-600 dark:text-green-500"
-        } else if (targetTo < targetFrom) {
-          colorClass = "text-red-600 dark:text-red-500"
-        }
-      } else if (targetTo !== null && targetFrom === null && row.original.action.toLowerCase().includes("initiated")) {
-        colorClass = "text-green-600 dark:text-green-500"
-      }
-
-      return h('div', { class: `text-sm font-semibold whitespace-nowrap ${colorClass}` }, 
-        `${formattedFrom} → ${formattedTo}`
-      )
-    },
-  },
-]
-
 # file name: src/components/stock-actions/DateRangePicker.vue ------------------------------------------
 <template>
   <div :class="cn('grid gap-2', $attrs.class as string)">
@@ -124,7 +9,7 @@ export const columns: ColumnDef<StockAction>[] = [
       is-range
       :locale="enUS"
     >
-      <template #default="{ togglePopover, inputValue }">
+      <template #default="{ togglePopover }">
         <Button
           id="date"
           variant="outline"
@@ -132,16 +17,28 @@ export const columns: ColumnDef<StockAction>[] = [
             'w-full justify-start text-left font-normal',
             !date?.from && 'text-muted-foreground'
           )"
-          @click="() => togglePopover()"
+          @click="togglePopover"
         >
-          <CalendarIcon class="mr-2 h-4 w-4" />
-          <span v-if="date?.from && date.to">
-            {{ format(date.from, "LLL dd, y") }} - {{ format(date.to, "LLL dd, y") }}
-          </span>
-          <span v-else-if="date?.from">
-            {{ format(date.from, "LLL dd, y") }}
-          </span>
-          <span v-else>Pick a date range</span>
+          <div class="flex items-center justify-between w-full">
+            <div class="flex items-center">
+              <CalendarIcon class="mr-2 h-4 w-4" />
+              <span v-if="date?.from && date.to">
+                {{ format(date.from, "LLL dd, y") }} - {{ format(date.to, "LLL dd, y") }}
+              </span>
+              <span v-else-if="date?.from">
+                {{ format(date.from, "LLL dd, y") }}
+              </span>
+              <span v-else>Pick a date range</span>
+            </div>
+
+            <button
+              v-if="date?.from"
+              class="p-1 rounded-full hover:bg-secondary"
+              @click.stop="clearDate"
+            >
+              <XIcon class="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
         </Button>
       </template>
     </VDatePicker>
@@ -152,13 +49,17 @@ export const columns: ColumnDef<StockAction>[] = [
 import { computed } from 'vue'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import { Calendar as CalendarIcon } from 'lucide-vue-next'
+import { Calendar as CalendarIcon, XIcon } from 'lucide-vue-next' 
 import { DatePicker as VDatePicker } from 'v-calendar'
 import 'v-calendar/style.css'
 
 import { cn } from '@/lib/utils'
 import Button from '@/components/ui/Button.vue'
-import type { DateRange as AppDateRange } from './StockActionsClient.vue'
+
+interface AppDateRange {
+  from?: Date
+  to?: Date
+}
 
 interface VCalendarDateRange {
   start: Date | null
@@ -171,6 +72,10 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits(['update:date'])
 
+const clearDate = () => {
+  emit('update:date', undefined);
+};
+
 const selectedDateRange = computed<VCalendarDateRange | undefined>({
   get: () => {
     if (!props.date || !props.date.from) {
@@ -182,93 +87,119 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     }
   },
   set: (value) => {
-    if (!value) {
+    if (!value || !value.start) {
       emit('update:date', undefined);
       return;
     }
 
     emit('update:date', {
-      from: value.start || undefined,
+      from: value.start,
       to: value.end || undefined,
     });
   },
 });
 </script>
 
-# file name: src/components/stock-actions/StockActionFilters.vue ------------------------------------------
+# file name: src/components/stock-actions/RankedStockCard.vue ------------------------------------------
 <template>
-    <div class="p-4 md:p-6 space-y-4 rounded-lg shadow-sm border bg-card">
-      <div class="flex flex-col md:flex-row gap-4 items-center">
-        <div class="relative w-full md:flex-grow">
-          <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search company, ticker, or brokerage..."
-            :modelValue="searchTerm"
-            @update:modelValue="$emit('update:searchTerm', $event)"
-            class="pl-10 pr-4 py-2 w-full"
-          />
+    <div class="bg-card border rounded-lg p-4 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 cursor-pointer"
+         @click="$emit('cardClick', stock)">
+      <div class="flex items-center gap-4">
+        <div class="flex flex-col items-center justify-center text-primary w-12">
+          <TrophyIcon class="h-6 w-6 mb-1" />
+          <span class="text-2xl font-bold leading-none">{{ stock.rank }}</span>
         </div>
-        <Button variant="outline" @click="showFilters = !showFilters" class="w-full md:w-auto">
-          <FilterIcon class="h-4 w-4 mr-2" />
-          {{ showFilters ? "Hide Filters" : "Show Filters" }}
-        </Button>
-        <Button v-if="hasActiveFilters" variant="ghost" @click="clearFilters" class="w-full md:w-auto text-sm">
-          <XIcon class="h-4 w-4 mr-2" />
-          Clear Filters
-        </Button>
-      </div>
   
-      <div v-if="showFilters" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-        <!-- Using basic select for brevity, replace with custom Select.vue or Headless UI -->
-        
-        
-        
-        <select
-          :value="selectedAction || ALL_FILTER_VALUE"
-          @change="$emit('update:selectedAction', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
-          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option :value="ALL_FILTER_VALUE">All Action Types</option>
-          <option v-for="action in actionTypes" :key="action" :value="action" class="capitalize">
-            {{ action }}
-          </option>
-        </select>
-        
-
-
-        <select
-          :value="selectedBrokerage || ALL_FILTER_VALUE"
-          @change="$emit('update:selectedBrokerage', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
-          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option :value="ALL_FILTER_VALUE">All Brokerages</option>
-          <option v-for="brokerage in brokerageFirms" :key="brokerage" :value="brokerage">
-            {{ brokerage }}
-          </option>
-        </select>
+        <Separator orientation="vertical" class="h-10" />
   
-        <DateRangePicker :date="dateRange" @update:date="$emit('update:dateRange', $event)" class="w-full" />
+        <div class="flex-grow">
+          <p class="font-semibold text-foreground truncate" :title="stock.company">
+            {{ stock.company }}
+          </p>
+          <Badge variant="secondary" class="mt-1">{{ stock.ticker }}</Badge>
+        </div>
       </div>
     </div>
   </template>
   
   <script setup lang="ts">
-  import { ref, computed } from 'vue'
-  import type { AppDateRange } from './DateRangePicker.vue' // Assuming AppDateRange is exported or define it here
-  import Input from "@/components/ui/Input.vue"
-  // If using the custom SelectProvider and parts:
-  // import SelectProvider from "@/components/ui/SelectProvider.vue"
-  // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/SelectParts.vue"
-  import DateRangePicker from "./DateRangePicker.vue"
-  import { XIcon, SearchIcon, FilterIcon } from "lucide-vue-next"
-  import Button from "@/components/ui/Button.vue"
+  import type { StockAction } from '@/types/stock-action';
+  import Badge from '@/components/ui/Badge.vue';
+  import Separator from '@/components/ui/Separator.vue';
+  import { TrophyIcon } from 'lucide-vue-next';
   
-  interface DateRange { // Define AppDateRange if not imported
+  interface Props {
+    stock: StockAction;
+  }
+  
+  defineProps<Props>();
+  defineEmits(['cardClick']);
+  </script>
+
+# file name: src/components/stock-actions/StockActionFilters.vue ------------------------------------------
+<template>
+  <div class="space-y-4">
+    <div class="flex flex-col md:flex-row gap-4 items-center">
+
+      <div class="relative w-full md:[flex-grow:5] min-w-0">
+        <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search company or ticker..."
+          :modelValue="searchTerm"
+          @update:modelValue="$emit('update:searchTerm', $event)"
+          class="pl-10 pr-4 py-2 w-full bg-secondary border-border"
+        />
+      </div>
+
+      <Select
+        :model-value="selectedAction"
+        @update:modelValue="$emit('update:selectedAction', $event || '')"
+        :options="actionTypeOptions"
+        placeholder="Action Type"
+        class="w-full md:[flex-grow:2] min-w-0"
+      />
+      
+      <Select
+        :model-value="selectedBrokerage"
+        @update:modelValue="$emit('update:selectedBrokerage', $event || '')"
+        :options="brokerageFirmOptions"
+        placeholder="Brokerage"
+        class="w-full md:[flex-grow:2] min-w-0"
+      />
+
+      <DateRangePicker 
+        :date="dateRange" 
+        @update:date="$emit('update:dateRange', $event)" 
+        class="w-full md:[flex-grow:3] min-w-0" 
+      />
+
+      <Button
+        v-if="hasActiveFilters"
+        @click="$emit('clearFilters')"
+        variant="ghost"
+        size="sm"
+        class="text-muted-foreground hover:text-foreground flex-shrink-0"
+      >
+        Clear Filters
+      </Button>
+
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { computed } from 'vue'
+  import Input from "@/components/ui/Input.vue"
+  import Select from "@/components/ui/Select.vue";
+  import DateRangePicker from "./DateRangePicker.vue"
+  import Button from "@/components/ui/Button.vue"
+  import { SearchIcon } from "lucide-vue-next"
+  
+  interface DateRange {
     from?: Date
     to?: Date
   }
-  
   interface StockActionFiltersProps {
     searchTerm: string
     selectedAction: string
@@ -277,84 +208,96 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     actionTypes: string[]
     brokerageFirms: string[]
   }
-  
   const props = defineProps<StockActionFiltersProps>()
-  
-  const emit = defineEmits([
+  defineEmits([
     'update:searchTerm',
     'update:selectedAction',
     'update:selectedBrokerage',
     'update:dateRange',
     'clearFilters'
   ])
-  
-  const showFilters = ref(false)
-  const ALL_FILTER_VALUE = "__ALL_FILTERS__";
-  
+
+  const actionTypeOptions = computed(() => [
+    { value: '', label: 'All Action Types' },
+    ...props.actionTypes.map(action => ({ value: action, label: action }))
+  ]);
+
+  const brokerageFirmOptions = computed(() => [
+    { value: '', label: 'All Brokerages' },
+    ...props.brokerageFirms.map(brokerage => ({ value: brokerage, label: brokerage }))
+  ]);
+
   const hasActiveFilters = computed(() => 
     props.searchTerm || props.selectedAction || props.selectedBrokerage || props.dateRange?.from
   )
-  
-  const clearFilters = () => {
-    emit('clearFilters')
-  }
-  </script>
+</script>
 
 # file name: src/components/stock-actions/StockActionsClient.vue ------------------------------------------
 <template>
-    <div class="container mx-auto py-6 px-4 md:px-0">
-      <header class="mb-8 text-center">
-        <h1 class="text-4xl font-bold text-primary">StockAction Insights</h1>
-        <p class="text-muted-foreground mt-2 text-lg">
-          Track and analyze stock rating changes from various brokerages.
-        </p>
-      </header>
-  
-      <StockActionFilters
-        :search-term="searchTerm"
-        @update:searchTerm="searchTerm = $event"
-        :selected-action="selectedAction"
-        @update:selectedAction="selectedAction = $event"
-        :selected-brokerage="selectedBrokerage"
-        @update:selectedBrokerage="selectedBrokerage = $event"
-        :date-range="dateRange"
-        @update:dateRange="dateRange = $event"
-        :action-types="actionTypes"
-        :brokerage-firms="brokerageFirms"
-        @clearFilters="clearFilters"
-      />
-  
-      <div class="mt-8">
+  <div class="container mx-auto py-10 px-4 md:px-0">
+    <header class="mb-8">
+      <h1 class="text-4xl font-bold text-foreground">Equity Pulse</h1>
+    </header>
+
+    <div class="space-y-8">
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Top Movers</h2>
+        <TopRankedStocks 
+          v-if="topRankedStocks.length > 0"
+          :stocks="topRankedStocks"
+          @stockSelect="handleRowClick"
+        />
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Quick Filters</h2>
+        <StockActionFilters
+          :search-term="searchTerm"
+          @update:searchTerm="searchTerm = $event"
+          :selected-action="selectedAction"
+          @update:selectedAction="selectedAction = $event"
+          :selected-brokerage="selectedBrokerage"
+          @update:selectedBrokerage="selectedBrokerage = $event"
+          :date-range="dateRange"
+          @update:dateRange="dateRange = $event"
+          :action-types="actionTypes"
+          :brokerage-firms="brokerageFirms"
+          @clearFilters="clearFilters"
+        />
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Ratings Grid</h2>
         <StockActionsTable
           :columns="columns"
           :data="filteredData"
           :on-row-click="handleRowClick"
         />
       </div>
-  
-      <StockDetailModal
-        :stock-action="selectedStockAction"
-        :is-open="isModalOpen"
-        @update:isOpen="isModalOpen = $event"
-      />
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed, watch } from 'vue'
+
+    <StockDetailModal
+      :stock-action="selectedStockAction"
+      :is-open="isModalOpen"
+      @update:isOpen="isModalOpen = $event"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { ref, computed } from 'vue'
   import type { StockAction } from "@/types/stock-action"
   import StockActionsTable from "./StockActionsTable.vue"
-  import { columns } from "./columns" // Vue version of columns.ts
+  import { columns } from "./columns"
   import StockActionFilters from "./StockActionFilters.vue"
   import StockDetailModal from "./StockDetailModal.vue"
-  // import type { DateRange } from "react-day-picker" // Replaced by local or v-calendar type
-  // Define AppDateRange if not imported from DateRangePicker.vue
+  import TopRankedStocks from './TopRankedStocks.vue'
+
   interface DateRange {
     from?: Date
     to?: Date
   }
-  
-  
+    
   interface StockActionsClientProps {
     initialData: StockAction[]
   }
@@ -368,6 +311,12 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     
   const selectedStockAction = ref<StockAction | null>(null)
   const isModalOpen = ref(false)
+
+  const topRankedStocks = computed(() => {
+    return [...props.initialData]
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 5);
+  });
   
   const actionTypes = computed(() => {
     const uniqueActions = new Set(props.initialData.map(item => item.action.toLowerCase()));
@@ -435,85 +384,76 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     selectedBrokerage.value = "";
     dateRange.value = undefined;
   };
-  
-  </script>
+</script>
 
 # file name: src/components/stock-actions/StockActionsTable.vue ------------------------------------------
 <template>
-    <div class="w-full">
-      <div class="rounded-md border shadow-sm bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-              <TableHead
-                v-for="header in headerGroup.headers"
-                :key="header.id"
-                :colSpan="header.colSpan"
-                class="whitespace-nowrap px-3 py-3 text-sm"
-                :style="{ width: header.getSize() !== 150 ? `${header.getSize()}px` : undefined }"
-              >
-                <FlexRender
-                  v-if="!header.isPlaceholder"
-                  :render="header.column.columnDef.header"
-                  :props="header.getContext()"
-                />
-              </TableHead>
+  <div class="w-full">
+    <div class="rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow class="border-b border-border hover:bg-transparent">
+            <TableHead
+              v-for="header in table.getHeaderGroups()[0].headers"
+              :key="header.id"
+              class="text-muted-foreground font-semibold uppercase text-xs tracking-wider"
+            >
+              <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <template v-if="table.getRowModel().rows?.length">
+            <TableRow
+              v-for="row in table.getRowModel().rows"
+              :key="row.id"
+              @click="() => onRowClick(row.original as TData)"
+              class="border-b border-border/50 hover:bg-secondary/50 cursor-pointer"
+            >
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="py-3 px-4">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            <template v-if="table.getRowModel().rows?.length">
-              <TableRow
-                v-for="row in table.getRowModel().rows"
-                :key="row.id"
-                :data-state="row.getIsSelected() ? 'selected' : undefined"
-                @click="() => onRowClick(row.original as TData)"
-                class="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                <TableCell
-                  v-for="cell in row.getVisibleCells()"
-                  :key="cell.id"
-                  class="px-3 py-3 text-sm"
-                >
-                  <FlexRender
-                    :render="cell.column.columnDef.cell"
-                    :props="cell.getContext()"
-                  />
-                </TableCell>
-              </TableRow>
-            </template>
-            <template v-else>
-              <TableRow>
-                <TableCell :colSpan="columns.length" class="h-24 text-center">
-                  No results found.
-                </TableCell>
-              </TableRow>
-            </template>
-          </TableBody>
-        </Table>
-      </div>
-      <div class="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          @click="table.previousPage()"
-          :disabled="!table.getCanPreviousPage()"
+          </template>
+          <template v-else>
+            <TableRow>
+              <TableCell :colSpan="columns.length" class="h-24 text-center">
+                No results found.
+              </TableCell>
+            </TableRow>
+          </template>
+        </TableBody>
+      </Table>
+    </div>
+
+    <div class="flex items-center justify-between space-x-2 py-4 mt-4">
+      <span class="text-sm text-muted-foreground">
+        Page {{ table.getState().pagination.pageIndex + 1 }} of {{ table.getPageCount() }}
+      </span>
+      <div class="flex items-center space-x-2">
+        <Button 
+            variant="outline" 
+            size="sm" 
+            @click="table.previousPage()" 
+            :disabled="!table.getCanPreviousPage()"
         >
           Previous
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          @click="table.nextPage()"
-          :disabled="!table.getCanNextPage()"
+        <Button 
+            variant="outline" 
+            size="sm" 
+            @click="table.nextPage()" 
+            :disabled="!table.getCanNextPage()"
         >
           Next
         </Button>
       </div>
     </div>
-  </template>
+  </div>
+</template>
   
-  <script setup lang="ts" generic="TData extends StockAction, TValue">
-  import { ref, onMounted, onBeforeUnmount, watchEffect, toRefs } from 'vue'
+<script setup lang="ts" generic="TData extends StockAction, TValue">
+  import { ref, onMounted, onBeforeUnmount, toRefs } from 'vue'
   import type {
     ColumnDef,
     SortingState,
@@ -529,14 +469,12 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     useVueTable,
   } from "@tanstack/vue-table"
   
-
   import Table from "@/components/ui/Table.vue"
   import TableBody from "@/components/ui/TableBody.vue"
   import TableCell from "@/components/ui/TableCell.vue"
   import TableHead from "@/components/ui/TableHead.vue"
   import TableHeader from "@/components/ui/TableHeader.vue"
   import TableRow from "@/components/ui/TableRow.vue"
-
   import Button from "@/components/ui/Button.vue"
   import type { StockAction } from "@/types/stock-action"
   
@@ -555,13 +493,7 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     'brokerage': false, 
     'ratingChange': false,
   })
-  
-  const hasMounted = ref(false);
-  
-  onMounted(() => {
-    hasMounted.value = true;
-  });
-  
+    
   const table = useVueTable({
     get data() { return data.value },
     get columns() { return columns.value },
@@ -592,9 +524,9 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
   
   const handleResize = () => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 768) { // Tailwind's 'md' breakpoint
+      if (window.innerWidth < 768) { 
         table.setColumnVisibility({
-          ...columnVisibility.value, // preserve other explicit visibilities
+          ...columnVisibility.value,
           'brokerage': false,
           'ratingChange': false,
           'time': false,
@@ -612,7 +544,7 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
   
   onMounted(() => {
     if (typeof window !== 'undefined') {
-      handleResize(); // Initial check
+      handleResize(); 
       window.addEventListener('resize', handleResize);
     }
   });
@@ -622,18 +554,11 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
       window.removeEventListener('resize', handleResize);
     }
   });
-  
-  // The hasMounted check for rendering is less critical in Vue for this specific resize logic,
-  // as DOM access is typically safer in onMounted. If there were truly conditional rendering
-  // based on window that could cause hydration mismatch, techniques like <ClientOnly> or
-  // v-if="hasMounted" on the whole component might be used. For now, the logic inside
-  // onMounted should suffice.
-  </script>
+</script>
 
 # file name: src/components/stock-actions/StockDetailModal.vue ------------------------------------------
 <template>
     <Sheet :open="isOpen" @update:open="$emit('update:isOpen', $event)" dialogClass="sm:max-w-lg w-[90vw]">
-      <!-- SheetContent is just a div wrapper in my basic example, so structure inside Sheet -->
       <SheetContent v-if="stockAction">
         <SheetHeader class="mb-6">
           <SheetTitle class="text-2xl font-bold">
@@ -735,18 +660,118 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
     return colorClass;
   })
   
-  // The asChild prop for Button is a pattern from Radix.
-  // For simple cases, you can wrap the <a> tag in the <Button> slot,
-  // or style the <a> tag to look like a button if `asChild` implies rendering the child as the button.
-  // My basic Button.vue doesn't support `asChild`. You'd typically just put an <a> inside a <button> or style the <a>.
-  // Here, I'll assume the Button with variant="link" is styled like a link and can contain an <a>.
-  // For true `asChild` behavior (where the Button component renders an `<a>` tag), you'd need a more complex Button component.
-  // A common Vue pattern is to pass `tag="a"` to the Button component if it supports dynamic root elements.
-  // Given the usage `variant="link"`, it's likely an `<a>` styled as a button or a button that behaves like a link.
-  // I'll adjust the Button component to accept `as="a"` or similar for this behavior. Or simply:
-  // <a :href="..." class="p-0 h-auto text-primary hover:underline ... (button link styles)">...</a>
-  // For simplicity, I'll keep the Button component and rely on its `link` variant styling.
   </script>
+
+# file name: src/components/stock-actions/TopRankedStocks.vue ------------------------------------------
+      
+<template>
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+    <div 
+      v-for="stock in stocks" 
+      :key="stock.id"
+      @click="$emit('stockSelect', stock)"
+      class="flex-shrink-0 p-4 rounded-lg cursor-pointer transition-transform duration-200 hover:-translate-y-1 bg-card border border-border/60 shadow-sm hover:shadow-lg"
+    >
+      <div class="h-16 w-16 mx-auto mb-3 rounded-full bg-secondary flex items-center justify-center">
+        <TrophyIcon class="h-8 w-8 text-primary" />
+      </div>
+      <h3 class="font-bold text-center text-foreground truncate" :title="stock.company">{{ stock.company }}</h3>
+      <p 
+        :class="['text-center font-semibold text-sm', stock.upside >= 0 ? 'text-green-500' : 'text-red-500']"
+      >
+        {{ stock.upside >= 0 ? 'Up' : 'Down' }} {{ Math.abs(stock.upside).toFixed(2) }}%
+      </p>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { StockAction } from '@/types/stock-action';
+import { TrophyIcon } from 'lucide-vue-next';
+
+defineProps<{
+  stocks: StockAction[]
+}>();
+
+defineEmits(['stockSelect']);
+</script>
+
+  
+
+# file name: src/components/stock-actions/columns.ts ------------------------------------------
+import { h } from 'vue'
+import type { ColumnDef } from "@tanstack/vue-table"
+import { format } from "date-fns"
+import type { StockAction } from "@/types/stock-action"
+import Badge from "@/components/ui/Badge.vue"
+import { formatPrice } from '@/lib/utils'
+
+export const columns: ColumnDef<StockAction>[] = [
+  {
+    accessorKey: "company",
+    header: "Company",
+    cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue("company")),
+  },
+  {
+    accessorKey: "ticker",
+    header: "Ticker",
+    cell: ({ row }) => h(Badge, { variant: "secondary" }, () => row.getValue("ticker")),
+  },
+  {
+    accessorKey: "brokerage",
+    header: "Brokerage",
+    cell: ({ row }) => h('div', {}, row.getValue("brokerage")),
+  },
+  {
+    accessorKey: "action",
+    header: "Rating",
+    cell: ({ row }) => {
+      const action = row.getValue("action")?.toLowerCase() ?? '';
+      
+      let variant: 'default' | 'destructive' | 'outline' = 'outline'; 
+      let text = 'Hold';
+
+      if (action.includes('upgrade') || action.includes('initiated')) {
+        variant = 'default'; 
+        text = 'Buy';
+      } else if (action.includes('downgrade')) {
+        variant = 'destructive'; 
+        text = 'Sell';
+      }
+      
+      return h(Badge, { variant, class: 'capitalize px-3 py-1 text-xs' }, () => text)
+    },
+  },
+  {
+    accessorKey: "spot",
+    header: "Price",
+    cell: ({ row }) => h('div', { class: 'font-mono' }, formatPrice(row.getValue("spot"))),
+  },
+  {
+    id: "change",
+    header: "Change",
+    cell: ({ row }) => {
+        const from = row.original.target_from;
+        const to = row.original.target_to;
+        if (to === null || from === null) return h('span', { class: 'text-muted-foreground' }, 'N/A');
+        
+        const change = to - from;
+        const isPositive = change >= 0;
+        const colorClass = isPositive ? 'text-green-500' : 'text-red-500';
+        const formattedChange = `${isPositive ? '+' : ''}${formatPrice(change)}`;
+        
+        return h('div', { class: `${colorClass} font-mono` }, formattedChange);
+    }
+  },
+  {
+    accessorKey: "time",
+    header: "Date",
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("time"));
+      return h('div', { class: 'text-muted-foreground' }, format(date, "MMM dd, yyyy"));
+    },
+  },
+]
 
 # file name: src/components/ui/Badge.vue ------------------------------------------
 <template>
@@ -858,215 +883,112 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
 
 # file name: src/components/ui/Select.vue ------------------------------------------
 <template>
-  <div class="relative" ref="selectRef">
-    <slot />
+  <div class="relative w-full" ref="selectRef">
+    <Button
+      variant="secondary" 
+      :class="cn(
+        'w-full justify-between text-left font-normal border border-input', 
+        !selectedLabel && 'text-muted-foreground',
+        props.class
+      )"
+      @click="toggleDropdown"
+      aria-haspopup="listbox"
+      :aria-expanded="isOpen"
+    >
+      <span class="truncate">
+        {{ selectedLabel || placeholder }}
+      </span>
+      <ChevronDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+
+    <Transition name="fade-scale">
+      <div
+        v-if="isOpen"
+        class="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md"
+      >
+        <ul class="max-h-60 overflow-auto p-1" role="listbox">
+          <li
+            v-for="option in options"
+            :key="option.value"
+            :class="[
+              'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent/50',
+              { 'bg-accent': modelValue === option.value }
+            ]"
+            role="option"
+            :aria-selected="modelValue === option.value"
+            @click="selectOption(option)"
+          >
+            <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+              <CheckIcon v-if="modelValue === option.value" class="h-4 w-4" />
+            </span>
+            <span class="truncate">{{ option.label }}</span>
+          </li>
+          <li v-if="!options.length" class="px-2 py-1.5 text-sm text-muted-foreground">
+            No options available.
+          </li>
+        </ul>
+      </div>
+    </Transition>
   </div>
 </template>
+
 <script setup lang="ts">
-import { ref, provide, onMounted, onUnmounted, watch } from 'vue';
-const props = defineProps<{ modelValue: string | number | undefined }>();
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
+import { cn } from '@/lib/utils';
+import Button from './Button.vue';
+import { ChevronDownIcon, CheckIcon } from 'lucide-vue-next';
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+const props = defineProps<{
+  modelValue: string | number | undefined;
+  options: SelectOption[];
+  placeholder?: string;
+  class?: string;
+}>();
 const emit = defineEmits(['update:modelValue']);
-
 const isOpen = ref(false);
-const selectedValue = ref(props.modelValue);
 const selectRef = ref<HTMLElement | null>(null);
-
-provide('selectIsOpen', isOpen);
-provide('selectSelectedValue', selectedValue);
-provide('selectToggleOpen', () => isOpen.value = !isOpen.value);
-provide('selectClose', () => isOpen.value = false);
-provide('selectUpdateSelectedValue', (val: string | number) => {
-  selectedValue.value = val;
-  emit('update:modelValue', val);
-  isOpen.value = false; // Close after selection
+const selectedLabel = computed(() => {
+  return props.options.find(opt => opt.value === props.modelValue)?.label;
 });
-
+const toggleDropdown = () => {
+  isOpen.value = !isOpen.value;
+};
+const selectOption = (option: SelectOption) => {
+  emit('update:modelValue', option.value);
+  isOpen.value = false;
+};
 const handleClickOutside = (event: MouseEvent) => {
   if (selectRef.value && !selectRef.value.contains(event.target as Node)) {
     isOpen.value = false;
   }
 };
-
-onMounted(() => {
-  if(typeof document !== 'undefined') document.addEventListener('click', handleClickOutside);
+watch(isOpen, (isCurrentlyOpen) => {
+  if (isCurrentlyOpen) {
+    nextTick(() => {
+      document.addEventListener('click', handleClickOutside);
+    });
+  } else {
+    document.removeEventListener('click', handleClickOutside);
+  }
 });
 onUnmounted(() => {
-  if(typeof document !== 'undefined') document.removeEventListener('click', handleClickOutside);
-});
-
-watch(() => props.modelValue, (newVal) => {
-  selectedValue.value = newVal;
+  document.removeEventListener('click', handleClickOutside);
 });
 </script>
-
-# file name: src/components/ui/SelectContent.vue ------------------------------------------
-<template>
-    <Transition name="fade-scale">
-      <div v-if="isOpenRef?.value" :class="cn('absolute z-50 min-w-[8rem] overflow-hidden mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2', props.class)">
-        <ul class="max-h-60 overflow-auto p-1">
-          <slot />
-        </ul>
-      </div>
-    </Transition>
-  </template>
-  <script setup lang="ts">
-  import { inject, type Ref } from 'vue';
-  import { cn } from '@/lib/utils';
-  const props = defineProps<{ class?: string }>();
-  const isOpenRef = inject<Ref<boolean>>('selectIsOpen'); // Renamed to avoid conflict
-  </script>
-  <style scoped>
-  .fade-scale-enter-active,
-  .fade-scale-leave-active {
-    transition: opacity 0.1s ease-out, transform 0.1s ease-out;
-  }
-  .fade-scale-enter-from,
-  .fade-scale-leave-to {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  </style>
-
-# file name: src/components/ui/SelectItem.vue ------------------------------------------
-<template>
-    <li
-      :class="cn('relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent/50', props.class)"
-      @click="handleClick"
-      role="option"
-      :aria-selected="isSelected"
-      :data-state="isSelected ? 'checked' : 'unchecked'"
-    >
-      <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-        <CheckIcon v-if="isSelected" class="h-4 w-4" />
-      </span>
-      <slot />
-    </li>
-  </template>
-  <script setup lang="ts">
-  import { inject, computed, type Ref } from 'vue';
-  import { cn } from '@/lib/utils';
-  import { CheckIcon } from 'lucide-vue-next';
-  
-  const props = defineProps<{ value: string | number, class?: string }>();
-  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
-  const updateSelectedValue = inject<(val: string | number) => void>('selectUpdateSelectedValue');
-  const closeSelect = inject<() => void>('selectClose');
-  
-  const isSelected = computed(() => selectedValue?.value === props.value);
-  
-  const handleClick = () => {
-    if (updateSelectedValue) updateSelectedValue(props.value);
-    // closeSelect is now called within updateSelectedValue in Select.vue
-  };
-  </script>
-
-# file name: src/components/ui/SelectParts.vue ------------------------------------------
-<!-- src/components/ui/Select.vue -->
-<template>
-    <div class="relative">
-      <slot />
-    </div>
-  </template>
-  
-  <!-- src/components/ui/SelectTrigger.vue -->
-  <template>
-    <Button variant="outline" :class="cn('w-full justify-between', props.class)" @click="toggleOpen" aria-haspopup="listbox" :aria-expanded="isOpen">
-      <slot name="valuePlaceholder" />
-      <ChevronDownIcon class="h-4 w-4 opacity-50" />
-    </Button>
-  </template>
-  <script setup lang="ts">
-  import { inject, type Ref } from 'vue';
-  import Button from './Button.vue';
-  import { cn } from '@/lib/utils';
-  import { ChevronDownIcon } from 'lucide-vue-next';
-  const props = defineProps<{ class?: string }>();
-  const isOpen = inject<Ref<boolean>>('selectIsOpen');
-  const toggleOpen = inject<() => void>('selectToggleOpen');
-  </script>
-  
-  <!-- src/components/ui/SelectValue.vue -->
-  <template><span><slot /></span></template>
-  
-  <!-- src/components/ui/SelectContent.vue -->
-  <template>
-    <div v-if="isOpen" :class="cn('absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95', props.class)">
-      <ul class="max-h-60 overflow-auto p-1">
-        <slot />
-      </ul>
-    </div>
-  </template>
-  <script setup lang="ts">
-  import { inject, type Ref } from 'vue';
-  import { cn } from '@/lib/utils';
-  const props = defineProps<{ class?: string }>();
-  const isOpen = inject<Ref<boolean>>('selectIsOpen');
-  </script>
-  
-  <!-- src/components/ui/SelectItem.vue -->
-  <template>
-    <li
-      :class="cn('relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent/50', props.class)"
-      @click="handleClick"
-      role="option"
-      :aria-selected="isSelected"
-    >
-      <span v-if="isSelected" class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-        <CheckIcon class="h-4 w-4" />
-      </span>
-      <slot />
-    </li>
-  </template>
-  <script setup lang="ts">
-  import { inject, computed, type Ref } from 'vue';
-  import { cn } from '@/lib/utils';
-  import { CheckIcon } from 'lucide-vue-next';
-  
-  const props = defineProps<{ value: string | number, class?: string }>();
-  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
-  const updateSelectedValue = inject<(val: string | number) => void>('selectUpdateSelectedValue');
-  const closeSelect = inject<() => void>('selectClose');
-  
-  const isSelected = computed(() => selectedValue?.value === props.value);
-  
-  const handleClick = () => {
-    if (updateSelectedValue) updateSelectedValue(props.value);
-    if (closeSelect) closeSelect();
-  };
-  </script>
-
-# file name: src/components/ui/SelectTrigger.vue ------------------------------------------
-<template>
-    <Button variant="outline" :class="cn('w-full justify-between', props.class)" @click="toggleOpen" aria-haspopup="listbox" :aria-expanded="isOpenRef ? isOpenRef.value : false">
-      <slot /> <!-- This slot will contain SelectValue -->
-      <ChevronDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-    </Button>
-  </template>
-  <script setup lang="ts">
-  import { inject, type Ref } from 'vue';
-  import Button from './Button.vue';
-  import { cn } from '@/lib/utils';
-  import { ChevronDownIcon } from 'lucide-vue-next';
-  const props = defineProps<{ class?: string }>();
-  const isOpenRef = inject<Ref<boolean>>('selectIsOpen'); // Renamed to avoid conflict
-  const toggleOpen = inject<() => void>('selectToggleOpen');
-  </script>
-
-# file name: src/components/ui/SelectValue.vue ------------------------------------------
-<template>
-    <span :class="cn(props.placeholder && !hasValue ? 'text-muted-foreground' : '', props.class)">
-      <slot v-if="hasValue" />
-      <template v-else>{{ props.placeholder }}</template>
-    </span>
-  </template>
-  <script setup lang="ts">
-  import { inject, computed, type Ref} from 'vue';
-  import { cn } from '@/lib/utils';
-  
-  const props = defineProps<{ placeholder?: string, class?: string }>()
-  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
-  const hasValue = computed(() => selectedValue?.value !== undefined && selectedValue.value !== '' && selectedValue.value !== null)
-  </script>
+<style scoped>
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+}
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(-5px);
+}
+</style>
 
 # file name: src/components/ui/Separator.vue ------------------------------------------
 <template>
@@ -1101,8 +1023,8 @@ watch(() => props.modelValue, (newVal) => {
   
   interface Props {
     open: boolean;
-    dialogClass?: string; // For styling the inner dialog panel
-    persistent?: boolean; // If true, clicking overlay doesn't close
+    dialogClass?: string; 
+    persistent?: boolean; 
   }
   const props = defineProps<Props>();
   const emit = defineEmits(['update:open']);
@@ -1148,7 +1070,7 @@ watch(() => props.modelValue, (newVal) => {
 
 # file name: src/components/ui/SheetContent.vue ------------------------------------------
 <template>
-    <div :class="cn('p-6', props.class)"> <!-- Added default padding -->
+    <div :class="cn('p-6', props.class)"> 
       <slot />
     </div>
   </template>
@@ -1170,7 +1092,7 @@ watch(() => props.modelValue, (newVal) => {
 
 # file name: src/components/ui/SheetFooter.vue ------------------------------------------
 <template>
-    <div :class="cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-6', props.class)"> <!-- Adjusted default style -->
+    <div :class="cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-6', props.class)"> 
       <slot />
     </div>
   </template>
@@ -1181,7 +1103,7 @@ watch(() => props.modelValue, (newVal) => {
 
 # file name: src/components/ui/SheetHeader.vue ------------------------------------------
 <template>
-    <div :class="cn('flex flex-col space-y-2 text-center sm:text-left mb-4', props.class)"> <!-- Adjusted default style -->
+    <div :class="cn('flex flex-col space-y-2 text-center sm:text-left mb-4', props.class)"> 
       <slot />
     </div>
   </template>
@@ -1192,7 +1114,7 @@ watch(() => props.modelValue, (newVal) => {
 
 # file name: src/components/ui/SheetTitle.vue ------------------------------------------
 <template>
-    <h2 :class="cn('text-lg font-semibold text-foreground', props.class)"> <!-- Adjusted default style -->
+    <h2 :class="cn('text-lg font-semibold text-foreground', props.class)"> 
       <slot />
     </h2>
   </template>
@@ -1259,7 +1181,6 @@ watch(() => props.modelValue, (newVal) => {
   </script>
 
 # file name: src/components/ui/TableParts.vue ------------------------------------------
-<!-- src/components/ui/Table.vue -->
 <template>
     <div class="relative w-full overflow-auto">
       <table :class="cn('w-full caption-bottom text-sm', props.class)" v_bind="$attrs">
@@ -1272,7 +1193,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableHeader.vue -->
   <template>
     <thead :class="cn('[&_tr]:border-b', props.class)" v_bind="$attrs">
       <slot />
@@ -1283,7 +1203,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableBody.vue -->
   <template>
     <tbody :class="cn('[&_tr:last-child]:border-0', props.class)" v_bind="$attrs">
       <slot />
@@ -1294,7 +1213,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableRow.vue -->
   <template>
     <tr :class="cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', props.class)" v_bind="$attrs">
       <slot />
@@ -1305,7 +1223,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableHead.vue -->
   <template>
     <th :class="cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
       <slot />
@@ -1316,7 +1233,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableCell.vue -->
   <template>
     <td :class="cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
       <slot />
@@ -1327,7 +1243,6 @@ watch(() => props.modelValue, (newVal) => {
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/Badge.vue -->
   <template>
     <div :class="badgeVariants({ variant, class: props.class })" v_bind="$attrs">
       <slot />
@@ -1363,7 +1278,6 @@ watch(() => props.modelValue, (newVal) => {
   })
   </script>
   
-  <!-- src/components/ui/Separator.vue -->
   <template>
     <hr :class="cn('shrink-0 bg-border', orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]', props.class)" v_bind="$attrs" />
   </template>
@@ -1378,9 +1292,6 @@ watch(() => props.modelValue, (newVal) => {
   })
   </script>
   
-  <!-- src/components/ui/SheetParts.vue (Simplified Modal) -->
-  <!-- Create Sheet.vue, SheetContent.vue, SheetHeader.vue, SheetTitle.vue, SheetDescription.vue, SheetFooter.vue -->
-  <!-- Example: src/components/ui/Sheet.vue (Basic Modal) -->
   <template>
     <Teleport to="body">
       <Transition name="fade">
@@ -1399,7 +1310,7 @@ watch(() => props.modelValue, (newVal) => {
   interface Props {
     open: boolean;
     class?: string;
-    persistent?: boolean; // If true, clicking overlay doesn't close
+    persistent?: boolean; 
   }
   const props = defineProps<Props>();
   const emit = defineEmits(['update:open']);
@@ -1417,7 +1328,6 @@ watch(() => props.modelValue, (newVal) => {
       document.body.style.overflow = '';
     }
   });
-  // Ensure body overflow is reset on unmount if modal was open
   import { onUnmounted } from 'vue';
   onUnmounted(() => {
     document.body.style.overflow = '';
@@ -1432,23 +1342,18 @@ watch(() => props.modelValue, (newVal) => {
   }
   </style>
   
-  <!-- src/components/ui/SheetContent.vue (Slot wrapper basically) -->
   <template><div :class="props.class"><slot /></div></template>
   <script setup lang="ts">const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetHeader.vue -->
   <template><div :class="cn('mb-6', props.class)"><slot /></div></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetTitle.vue -->
   <template><h2 :class="cn('text-2xl font-bold', props.class)"><slot /></h2></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetDescription.vue -->
   <template><p :class="cn('text-muted-foreground', props.class)"><slot /></p></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetFooter.vue -->
   <template><div :class="cn('mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', props.class)"><slot /></div></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
 
@@ -1464,7 +1369,6 @@ watch(() => props.modelValue, (newVal) => {
   </script>
 
 # file name: src/lib/utils.ts ------------------------------------------
-// src/lib/utils.ts
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -1474,17 +1378,34 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatPrice(price: number | null | undefined): string {
   if (price === null || price === undefined) return "N/A";
-  // Puedes decidir si usar toFixed(2) si los precios pueden tener decimales
   return `$${price.toFixed(2)}`;
 }
 
-// Helper to generate unique IDs, useful if data doesn't have them
 export function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
 }
 
+# file name: src/main.ts ------------------------------------------
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { VueQueryPlugin } from "@tanstack/vue-query"
+import App from './App.vue'
+import router from './router'
+import './assets/main.css' 
+import { Toaster } from 'vue-sonner'
+
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+app.use(VueQueryPlugin)
+
+app.component('Toaster', Toaster)
+
+
+app.mount('#app')
+
 # file name: src/stores/stockStore.ts ------------------------------------------
-// src/stores/stockStore.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { StockAction } from '@/types/stock-action'
@@ -1500,7 +1421,7 @@ export const useStockStore = defineStore('stock', () => {
     error.value = null
     try {
       const res = await fetch("http://localhost:8080/stocks", {
-        cache: "no-store", // Standard fetch cache option
+        cache: "no-store", 
       });
       if (!res.ok) {
         throw new Error(`Error fetching /stocks: ${res.status}`);
@@ -1566,63 +1487,11 @@ import { useStockStore } from '@/stores/stockStore'
 const stockStore = useStockStore()
 
 onMounted(() => {
-  if (stockStore.stockActions.length === 0) { // Fetch only if not already loaded
+  if (stockStore.stockActions.length === 0) { 
     stockStore.fetchStockActions()
   }
 })
 </script>
-
-# file name: src/App.vue ------------------------------------------
-<template>
-  <RouterView />
-  <Toaster richColors position="top-right" />
-</template>
-
-<script setup lang="ts">
-import { RouterView } from 'vue-router'
-</script>
-
-# file name: src/main.ts ------------------------------------------
-// src/main.ts
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import { VueQueryPlugin } from "@tanstack/vue-query"
-import App from './App.vue'
-import router from './router'
-import './assets/main.css' // Tailwind CSS / global styles
-import { Toaster } from 'vue-sonner'
-
-const app = createApp(App)
-
-app.use(createPinia())
-app.use(router)
-app.use(VueQueryPlugin)
-
-// Register vue-sonner Toaster globally or use it in App.vue
-app.component('Toaster', Toaster)
-
-
-app.mount('#app')
-
-# file name: src/router.ts ------------------------------------------
-// src/router.ts
-import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '@/views/HomePage.vue'
-
-const routes = [
-  {
-    path: '/',
-    name: 'Home',
-    component: HomePage,
-  },
-]
-
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-})
-
-export default router
 
 # file name: package.json ------------------------------------------
 {
@@ -1673,4 +1542,126 @@ export default router
   }
 }
 
+
+# file name: tailwind.config.js ------------------------------------------
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: 'class', 
+  content: [
+    "./index.html",
+    "./src/**/*.{vue,js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        sans: ['Arial', 'Helvetica', 'sans-serif'],
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+}
+
+# file name: src/assets/main.css ------------------------------------------
+/* src/assets/main.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ====================================================================== */
+  /* ==                 TEMA "EQUITY PULSE" (DARK MODE)                  == */
+  /* ====================================================================== */
+  :root {
+    /* Paleta base de colores en formato HSL */
+    --background: 212 35% 11%;      /* #0D1117 - Fondo principal casi negro */
+    --foreground: 210 15% 83%;      /* #C9D1D9 - Texto principal blanco roto */
+
+    --card: 212 18% 14%;            /* #161B22 - Fondo de tarjetas y tabla */
+    --card-foreground: 210 15% 83%; /* #C9D1D9 - Texto en tarjetas */
+
+    --popover: 212 18% 14%;         /* #161B22 - Fondo para popovers */
+    --popover-foreground: 210 15% 83%; /* #C9D1D9 - Texto en popovers */
+
+    /* Colores de Acciones y Acentos */
+    --primary: 136 65% 33%;         /* #238636 - Verde para 'Buy' / acciones positivas */
+    --primary-foreground: 210 20% 98%; /* Texto blanco para el botón primario */
+    
+    --destructive: 1 72% 52%;       /* #DA3633 - Rojo para 'Sell' / acciones destructivas */
+    --destructive-foreground: 210 20% 98%; /* Texto blanco para el botón destructivo */
+
+    --accent: 215 82% 53%;          /* #1F6FEB - Azul para la paginación y acentos */
+    --accent-foreground: 210 20% 98%;   /* Texto blanco para acentos */
+    
+    /* Elementos Secundarios y de UI */
+    --secondary: 212 13% 16%;      /* #21262D - Fondo para filtros, badges, hover */
+    --secondary-foreground: 210 15% 83%; /* #C9D1D9 - Texto en elementos secundarios */
+    
+    --muted: 212 13% 16%;           /* #21262D - Similar a secondary */
+    --muted-foreground: 213 9% 58%; /* #8B949E - Texto atenuado */
+
+    /* Bordes y Anillos de Foco */
+    --border: 212 13% 22%;          /* #30363D - Borde sutil para contenedores */
+    --input: 212 13% 16%;           /* #21262D - Fondo para los campos de input */
+    --ring: 212 100% 67%;           /* #58A6FF - Color de realce al hacer focus */
+    
+    /* Radio de borde para los componentes */
+    --radius: 0.5rem;
+  }
+
+  /* No es necesario un bloque .dark porque el tema oscuro es el predeterminado.
+     Si quisieras añadir un tema claro, lo definirías aquí, por ejemplo:
+     .light { ... } 
+  */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
 

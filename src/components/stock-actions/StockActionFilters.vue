@@ -1,76 +1,66 @@
 <template>
-    <div class="p-4 md:p-6 space-y-4 rounded-lg shadow-sm border bg-card">
-      <div class="flex flex-col md:flex-row gap-4 items-center">
-        <div class="relative w-full md:flex-grow">
-          <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search company, ticker, or brokerage..."
-            :modelValue="searchTerm"
-            @update:modelValue="$emit('update:searchTerm', $event)"
-            class="pl-10 pr-4 py-2 w-full"
-          />
-        </div>
-        <Button variant="outline" @click="showFilters = !showFilters" class="w-full md:w-auto">
-          <FilterIcon class="h-4 w-4 mr-2" />
-          {{ showFilters ? "Hide Filters" : "Show Filters" }}
-        </Button>
-        <Button v-if="hasActiveFilters" variant="ghost" @click="clearFilters" class="w-full md:w-auto text-sm">
-          <XIcon class="h-4 w-4 mr-2" />
-          Clear Filters
-        </Button>
-      </div>
-  
-      <div v-if="showFilters" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-        <!-- Using basic select for brevity, replace with custom Select.vue or Headless UI -->
-        
-        
-        
-        <select
-          :value="selectedAction || ALL_FILTER_VALUE"
-          @change="$emit('update:selectedAction', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
-          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option :value="ALL_FILTER_VALUE">All Action Types</option>
-          <option v-for="action in actionTypes" :key="action" :value="action" class="capitalize">
-            {{ action }}
-          </option>
-        </select>
-        
+  <div class="space-y-4">
+    <div class="flex flex-col md:flex-row gap-4 items-center">
 
-
-        <select
-          :value="selectedBrokerage || ALL_FILTER_VALUE"
-          @change="$emit('update:selectedBrokerage', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
-          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option :value="ALL_FILTER_VALUE">All Brokerages</option>
-          <option v-for="brokerage in brokerageFirms" :key="brokerage" :value="brokerage">
-            {{ brokerage }}
-          </option>
-        </select>
-  
-        <DateRangePicker :date="dateRange" @update:date="$emit('update:dateRange', $event)" class="w-full" />
+      <div class="relative w-full md:[flex-grow:5] min-w-0">
+        <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search company or ticker..."
+          :modelValue="searchTerm"
+          @update:modelValue="$emit('update:searchTerm', $event)"
+          class="pl-10 pr-4 py-2 w-full bg-secondary border-border"
+        />
       </div>
+
+      <Select
+        :model-value="selectedAction"
+        @update:modelValue="$emit('update:selectedAction', $event || '')"
+        :options="actionTypeOptions"
+        placeholder="Action Type"
+        class="w-full md:[flex-grow:2] min-w-0"
+      />
+      
+      <Select
+        :model-value="selectedBrokerage"
+        @update:modelValue="$emit('update:selectedBrokerage', $event || '')"
+        :options="brokerageFirmOptions"
+        placeholder="Brokerage"
+        class="w-full md:[flex-grow:2] min-w-0"
+      />
+
+      <DateRangePicker 
+        :date="dateRange" 
+        @update:date="$emit('update:dateRange', $event)" 
+        class="w-full md:[flex-grow:3] min-w-0" 
+      />
+
+      <Button
+        v-if="hasActiveFilters"
+        @click="$emit('clearFilters')"
+        variant="ghost"
+        size="sm"
+        class="text-muted-foreground hover:text-foreground flex-shrink-0"
+      >
+        Clear Filters
+      </Button>
+
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, computed } from 'vue'
-  import type { AppDateRange } from './DateRangePicker.vue' // Assuming AppDateRange is exported or define it here
+  </div>
+</template>
+
+<script setup lang="ts">
+  import { computed } from 'vue'
   import Input from "@/components/ui/Input.vue"
-  // If using the custom SelectProvider and parts:
-  // import SelectProvider from "@/components/ui/SelectProvider.vue"
-  // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/SelectParts.vue"
+  import Select from "@/components/ui/Select.vue";
   import DateRangePicker from "./DateRangePicker.vue"
-  import { XIcon, SearchIcon, FilterIcon } from "lucide-vue-next"
   import Button from "@/components/ui/Button.vue"
+  import { SearchIcon } from "lucide-vue-next"
   
-  interface DateRange { // Define AppDateRange if not imported
+  interface DateRange {
     from?: Date
     to?: Date
   }
-  
   interface StockActionFiltersProps {
     searchTerm: string
     selectedAction: string
@@ -79,25 +69,26 @@
     actionTypes: string[]
     brokerageFirms: string[]
   }
-  
   const props = defineProps<StockActionFiltersProps>()
-  
-  const emit = defineEmits([
+  defineEmits([
     'update:searchTerm',
     'update:selectedAction',
     'update:selectedBrokerage',
     'update:dateRange',
     'clearFilters'
   ])
-  
-  const showFilters = ref(false)
-  const ALL_FILTER_VALUE = "__ALL_FILTERS__";
-  
+
+  const actionTypeOptions = computed(() => [
+    { value: '', label: 'All Action Types' },
+    ...props.actionTypes.map(action => ({ value: action, label: action }))
+  ]);
+
+  const brokerageFirmOptions = computed(() => [
+    { value: '', label: 'All Brokerages' },
+    ...props.brokerageFirms.map(brokerage => ({ value: brokerage, label: brokerage }))
+  ]);
+
   const hasActiveFilters = computed(() => 
     props.searchTerm || props.selectedAction || props.selectedBrokerage || props.dateRange?.from
   )
-  
-  const clearFilters = () => {
-    emit('clearFilters')
-  }
-  </script>
+</script>

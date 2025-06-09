@@ -1,113 +1,73 @@
-// src/components/stock-actions/columns.ts
 import { h } from 'vue'
 import type { ColumnDef } from "@tanstack/vue-table"
 import { format } from "date-fns"
-import { ArrowUpDown } from "lucide-vue-next"
-
 import type { StockAction } from "@/types/stock-action"
-import Button from "@/components/ui/Button.vue" // Vue Button
-import Badge from "@/components/ui/Badge.vue"   // Vue Badge
-import { formatPrice } from "@/lib/utils"
+import Badge from "@/components/ui/Badge.vue"
+import { formatPrice } from '@/lib/utils'
 
 export const columns: ColumnDef<StockAction>[] = [
   {
-    accessorKey: "time",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Date',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("time"))
-      return h('div', { class: 'text-sm' }, format(date, "MMM dd, yyyy"))
-    },
-    // Enable sorting for this column if desired
-    enableSorting: true,
-  },
-  {
-    accessorKey: "brokerage",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Brokerage',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => h('div', { class: 'text-sm' }, row.getValue("brokerage")),
-    enableSorting: true,
+    accessorKey: "company",
+    header: "Company",
+    cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue("company")),
   },
   {
     accessorKey: "ticker",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Ticker',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
+    header: "Ticker",
     cell: ({ row }) => h(Badge, { variant: "secondary" }, () => row.getValue("ticker")),
-    enableSorting: true,
   },
   {
-    accessorKey: "company",
-    header: ({ column }) => {
-      return h(Button, {
-        variant: "ghost",
-        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
-      }, () => [
-        'Company',
-        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
-      ])
-    },
-    cell: ({ row }) => h('div', { class: 'font-medium text-sm' }, row.getValue("company")),
-    enableSorting: true,
+    accessorKey: "brokerage",
+    header: "Brokerage",
+    cell: ({ row }) => h('div', {}, row.getValue("brokerage")),
   },
   {
     accessorKey: "action",
-    header: "Action",
-    cell: ({ row }) => h('div', { class: 'capitalize text-sm' }, row.getValue("action")),
-  },
-  {
-    id: "ratingChange",
     header: "Rating",
     cell: ({ row }) => {
-      const ratingFrom = row.original.rating_from || "N/A"
-      const ratingTo = row.original.rating_to
-      return h('div', { class: 'text-sm whitespace-nowrap' }, `${ratingFrom} → ${ratingTo}`)
+      const action = row.getValue("action")?.toLowerCase() ?? '';
+      
+      let variant: 'default' | 'destructive' | 'outline' = 'outline'; 
+      let text = 'Hold';
+
+      if (action.includes('upgrade') || action.includes('initiated')) {
+        variant = 'default'; 
+        text = 'Buy';
+      } else if (action.includes('downgrade')) {
+        variant = 'destructive'; 
+        text = 'Sell';
+      }
+      
+      return h(Badge, { variant, class: 'capitalize px-3 py-1 text-xs' }, () => text)
     },
   },
   {
-    id: "priceTargetChange",
-    header: "Price Target",
+    accessorKey: "spot",
+    header: "Price",
+    cell: ({ row }) => h('div', { class: 'font-mono' }, formatPrice(row.getValue("spot"))),
+  },
+  {
+    id: "change",
+    header: "Change",
     cell: ({ row }) => {
-      const targetFrom = row.original.target_from
-      const targetTo = row.original.target_to
-
-      const formattedFrom = formatPrice(targetFrom)
-      const formattedTo = formatPrice(targetTo)
-      
-      let colorClass = "text-foreground" // Default color
-      if (targetTo !== null && targetFrom !== null) {
-        if (targetTo > targetFrom) {
-          colorClass = "text-green-600 dark:text-green-500"
-        } else if (targetTo < targetFrom) {
-          colorClass = "text-red-600 dark:text-red-500"
-        }
-      } else if (targetTo !== null && targetFrom === null && row.original.action.toLowerCase().includes("initiated")) {
-        colorClass = "text-green-600 dark:text-green-500"
-      }
-
-      return h('div', { class: `text-sm font-semibold whitespace-nowrap ${colorClass}` }, 
-        `${formattedFrom} → ${formattedTo}`
-      )
+        const from = row.original.target_from;
+        const to = row.original.target_to;
+        if (to === null || from === null) return h('span', { class: 'text-muted-foreground' }, 'N/A');
+        
+        const change = to - from;
+        const isPositive = change >= 0;
+        const colorClass = isPositive ? 'text-green-500' : 'text-red-500';
+        const formattedChange = `${isPositive ? '+' : ''}${formatPrice(change)}`;
+        
+        return h('div', { class: `${colorClass} font-mono` }, formattedChange);
+    }
+  },
+  {
+    accessorKey: "time",
+    header: "Date",
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("time"));
+      return h('div', { class: 'text-muted-foreground' }, format(date, "MMM dd, yyyy"));
     },
   },
 ]

@@ -1,78 +1,70 @@
 <template>
-    <div class="w-full">
-      <div class="rounded-md border shadow-sm bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-              <TableHead
-                v-for="header in headerGroup.headers"
-                :key="header.id"
-                :colSpan="header.colSpan"
-                class="whitespace-nowrap px-3 py-3 text-sm"
-                :style="{ width: header.getSize() !== 150 ? `${header.getSize()}px` : undefined }"
-              >
-                <FlexRender
-                  v-if="!header.isPlaceholder"
-                  :render="header.column.columnDef.header"
-                  :props="header.getContext()"
-                />
-              </TableHead>
+  <div class="w-full">
+    <div class="rounded-lg border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow class="border-b border-border hover:bg-transparent">
+            <TableHead
+              v-for="header in table.getHeaderGroups()[0].headers"
+              :key="header.id"
+              class="text-muted-foreground font-semibold uppercase text-xs tracking-wider"
+            >
+              <FlexRender :render="header.column.columnDef.header" :props="header.getContext()" />
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <template v-if="table.getRowModel().rows?.length">
+            <TableRow
+              v-for="row in table.getRowModel().rows"
+              :key="row.id"
+              @click="() => onRowClick(row.original as TData)"
+              class="border-b border-border/50 hover:bg-secondary/50 cursor-pointer"
+            >
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="py-3 px-4">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            <template v-if="table.getRowModel().rows?.length">
-              <TableRow
-                v-for="row in table.getRowModel().rows"
-                :key="row.id"
-                :data-state="row.getIsSelected() ? 'selected' : undefined"
-                @click="() => onRowClick(row.original as TData)"
-                class="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                <TableCell
-                  v-for="cell in row.getVisibleCells()"
-                  :key="cell.id"
-                  class="px-3 py-3 text-sm"
-                >
-                  <FlexRender
-                    :render="cell.column.columnDef.cell"
-                    :props="cell.getContext()"
-                  />
-                </TableCell>
-              </TableRow>
-            </template>
-            <template v-else>
-              <TableRow>
-                <TableCell :colSpan="columns.length" class="h-24 text-center">
-                  No results found.
-                </TableCell>
-              </TableRow>
-            </template>
-          </TableBody>
-        </Table>
-      </div>
-      <div class="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          @click="table.previousPage()"
-          :disabled="!table.getCanPreviousPage()"
+          </template>
+          <template v-else>
+            <TableRow>
+              <TableCell :colSpan="columns.length" class="h-24 text-center">
+                No results found.
+              </TableCell>
+            </TableRow>
+          </template>
+        </TableBody>
+      </Table>
+    </div>
+
+    <div class="flex items-center justify-between space-x-2 py-4 mt-4">
+      <span class="text-sm text-muted-foreground">
+        Page {{ table.getState().pagination.pageIndex + 1 }} of {{ table.getPageCount() }}
+      </span>
+      <div class="flex items-center space-x-2">
+        <Button 
+            variant="outline" 
+            size="sm" 
+            @click="table.previousPage()" 
+            :disabled="!table.getCanPreviousPage()"
         >
           Previous
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          @click="table.nextPage()"
-          :disabled="!table.getCanNextPage()"
+        <Button 
+            variant="outline" 
+            size="sm" 
+            @click="table.nextPage()" 
+            :disabled="!table.getCanNextPage()"
         >
           Next
         </Button>
       </div>
     </div>
-  </template>
+  </div>
+</template>
   
-  <script setup lang="ts" generic="TData extends StockAction, TValue">
-  import { ref, onMounted, onBeforeUnmount, watchEffect, toRefs } from 'vue'
+<script setup lang="ts" generic="TData extends StockAction, TValue">
+  import { ref, onMounted, onBeforeUnmount, toRefs } from 'vue'
   import type {
     ColumnDef,
     SortingState,
@@ -88,14 +80,12 @@
     useVueTable,
   } from "@tanstack/vue-table"
   
-
   import Table from "@/components/ui/Table.vue"
   import TableBody from "@/components/ui/TableBody.vue"
   import TableCell from "@/components/ui/TableCell.vue"
   import TableHead from "@/components/ui/TableHead.vue"
   import TableHeader from "@/components/ui/TableHeader.vue"
   import TableRow from "@/components/ui/TableRow.vue"
-
   import Button from "@/components/ui/Button.vue"
   import type { StockAction } from "@/types/stock-action"
   
@@ -114,13 +104,7 @@
     'brokerage': false, 
     'ratingChange': false,
   })
-  
-  const hasMounted = ref(false);
-  
-  onMounted(() => {
-    hasMounted.value = true;
-  });
-  
+    
   const table = useVueTable({
     get data() { return data.value },
     get columns() { return columns.value },
@@ -151,9 +135,9 @@
   
   const handleResize = () => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth < 768) { // Tailwind's 'md' breakpoint
+      if (window.innerWidth < 768) { 
         table.setColumnVisibility({
-          ...columnVisibility.value, // preserve other explicit visibilities
+          ...columnVisibility.value,
           'brokerage': false,
           'ratingChange': false,
           'time': false,
@@ -171,7 +155,7 @@
   
   onMounted(() => {
     if (typeof window !== 'undefined') {
-      handleResize(); // Initial check
+      handleResize(); 
       window.addEventListener('resize', handleResize);
     }
   });
@@ -181,10 +165,4 @@
       window.removeEventListener('resize', handleResize);
     }
   });
-  
-  // The hasMounted check for rendering is less critical in Vue for this specific resize logic,
-  // as DOM access is typically safer in onMounted. If there were truly conditional rendering
-  // based on window that could cause hydration mismatch, techniques like <ClientOnly> or
-  // v-if="hasMounted" on the whole component might be used. For now, the logic inside
-  // onMounted should suffice.
-  </script>
+</script>

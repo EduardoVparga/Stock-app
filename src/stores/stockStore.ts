@@ -1,4 +1,3 @@
-// src/stores/stockStore.ts
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { StockAction } from '@/types/stock-action'
@@ -14,7 +13,7 @@ export const useStockStore = defineStore('stock', () => {
     error.value = null
     try {
       const res = await fetch("http://localhost:8080/stocks", {
-        cache: "no-store", // Standard fetch cache option
+        cache: "no-store", 
       });
       if (!res.ok) {
         throw new Error(`Error fetching /stocks: ${res.status}`);

@@ -16,7 +16,7 @@ import { useStockStore } from '@/stores/stockStore'
 const stockStore = useStockStore()
 
 onMounted(() => {
-  if (stockStore.stockActions.length === 0) { // Fetch only if not already loaded
+  if (stockStore.stockActions.length === 0) { 
     stockStore.fetchStockActions()
   }
 })

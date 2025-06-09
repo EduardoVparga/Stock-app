@@ -1,4 +1,3 @@
-<!-- src/components/ui/Table.vue -->
 <template>
     <div class="relative w-full overflow-auto">
       <table :class="cn('w-full caption-bottom text-sm', props.class)" v_bind="$attrs">
@@ -11,7 +10,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableHeader.vue -->
   <template>
     <thead :class="cn('[&_tr]:border-b', props.class)" v_bind="$attrs">
       <slot />
@@ -22,7 +20,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableBody.vue -->
   <template>
     <tbody :class="cn('[&_tr:last-child]:border-0', props.class)" v_bind="$attrs">
       <slot />
@@ -33,7 +30,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableRow.vue -->
   <template>
     <tr :class="cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', props.class)" v_bind="$attrs">
       <slot />
@@ -44,7 +40,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableHead.vue -->
   <template>
     <th :class="cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
       <slot />
@@ -55,7 +50,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/TableCell.vue -->
   <template>
     <td :class="cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
       <slot />
@@ -66,7 +60,6 @@
   const props = defineProps<{ class?: string }>();
   </script>
   
-  <!-- src/components/ui/Badge.vue -->
   <template>
     <div :class="badgeVariants({ variant, class: props.class })" v_bind="$attrs">
       <slot />
@@ -102,7 +95,6 @@
   })
   </script>
   
-  <!-- src/components/ui/Separator.vue -->
   <template>
     <hr :class="cn('shrink-0 bg-border', orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]', props.class)" v_bind="$attrs" />
   </template>
@@ -117,9 +109,6 @@
   })
   </script>
   
-  <!-- src/components/ui/SheetParts.vue (Simplified Modal) -->
-  <!-- Create Sheet.vue, SheetContent.vue, SheetHeader.vue, SheetTitle.vue, SheetDescription.vue, SheetFooter.vue -->
-  <!-- Example: src/components/ui/Sheet.vue (Basic Modal) -->
   <template>
     <Teleport to="body">
       <Transition name="fade">
@@ -138,7 +127,7 @@
   interface Props {
     open: boolean;
     class?: string;
-    persistent?: boolean; // If true, clicking overlay doesn't close
+    persistent?: boolean; 
   }
   const props = defineProps<Props>();
   const emit = defineEmits(['update:open']);
@@ -156,7 +145,6 @@
       document.body.style.overflow = '';
     }
   });
-  // Ensure body overflow is reset on unmount if modal was open
   import { onUnmounted } from 'vue';
   onUnmounted(() => {
     document.body.style.overflow = '';
@@ -171,22 +159,17 @@
   }
   </style>
   
-  <!-- src/components/ui/SheetContent.vue (Slot wrapper basically) -->
   <template><div :class="props.class"><slot /></div></template>
   <script setup lang="ts">const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetHeader.vue -->
   <template><div :class="cn('mb-6', props.class)"><slot /></div></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetTitle.vue -->
   <template><h2 :class="cn('text-2xl font-bold', props.class)"><slot /></h2></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetDescription.vue -->
   <template><p :class="cn('text-muted-foreground', props.class)"><slot /></p></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
   
-  <!-- src/components/ui/SheetFooter.vue -->
   <template><div :class="cn('mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', props.class)"><slot /></div></template>
   <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>

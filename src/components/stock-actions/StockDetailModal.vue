@@ -1,6 +1,5 @@
 <template>
     <Sheet :open="isOpen" @update:open="$emit('update:isOpen', $event)" dialogClass="sm:max-w-lg w-[90vw]">
-      <!-- SheetContent is just a div wrapper in my basic example, so structure inside Sheet -->
       <SheetContent v-if="stockAction">
         <SheetHeader class="mb-6">
           <SheetTitle class="text-2xl font-bold">
@@ -102,15 +101,4 @@
     return colorClass;
   })
   
-  // The asChild prop for Button is a pattern from Radix.
-  // For simple cases, you can wrap the <a> tag in the <Button> slot,
-  // or style the <a> tag to look like a button if `asChild` implies rendering the child as the button.
-  // My basic Button.vue doesn't support `asChild`. You'd typically just put an <a> inside a <button> or style the <a>.
-  // Here, I'll assume the Button with variant="link" is styled like a link and can contain an <a>.
-  // For true `asChild` behavior (where the Button component renders an `<a>` tag), you'd need a more complex Button component.
-  // A common Vue pattern is to pass `tag="a"` to the Button component if it supports dynamic root elements.
-  // Given the usage `variant="link"`, it's likely an `<a>` styled as a button or a button that behaves like a link.
-  // I'll adjust the Button component to accept `as="a"` or similar for this behavior. Or simply:
-  // <a :href="..." class="p-0 h-auto text-primary hover:underline ... (button link styles)">...</a>
-  // For simplicity, I'll keep the Button component and rely on its `link` variant styling.
   </script>

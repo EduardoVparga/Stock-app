@@ -1,5 +1,5 @@
 <template>
-    <h2 :class="cn('text-lg font-semibold text-foreground', props.class)"> <!-- Adjusted default style -->
+    <h2 :class="cn('text-lg font-semibold text-foreground', props.class)"> 
       <slot />
     </h2>
   </template>
