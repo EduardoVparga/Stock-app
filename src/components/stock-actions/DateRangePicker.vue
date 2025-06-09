@@ -48,53 +48,50 @@
 import { computed } from 'vue'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import { Calendar as CalendarIcon, XIcon } from 'lucide-vue-next' 
+import { Calendar as CalendarIcon, XIcon } from 'lucide-vue-next'
 import { DatePicker as VDatePicker } from 'v-calendar'
 import 'v-calendar/style.css'
 
 import { cn } from '@/lib/utils'
 import Button from '@/components/ui/Button.vue'
+import type { DatePickerModel } from 'v-calendar/dist/types/src/use/datePicker.js'
 
 interface AppDateRange {
   from?: Date
   to?: Date
 }
 
-interface VCalendarDateRange {
-  start: Date | null
-  end: Date | null
-}
-
 interface Props {
   date?: AppDateRange
 }
+
 const props = defineProps<Props>()
-const emit = defineEmits(['update:date'])
+const emit = defineEmits<{
+  (e: 'update:date', value: AppDateRange | undefined): void
+}>()
 
 const clearDate = () => {
-  emit('update:date', undefined);
-};
+  emit('update:date', undefined)
+}
 
-const selectedDateRange = computed<VCalendarDateRange | undefined>({
-  get: () => {
-    if (!props.date || !props.date.from) {
-      return undefined
-    }
+const selectedDateRange = computed<DatePickerModel | undefined>({
+  get(): DatePickerModel | undefined {
+    if (!props.date?.from) return undefined
     return {
       start: props.date.from,
-      end: props.date.to || null,
-    }
+      ...(props.date.to ? { end: props.date.to } : {}),
+    } as DatePickerModel
   },
-  set: (value) => {
-    if (!value || !value.start) {
-      emit('update:date', undefined);
-      return;
+  set(value: DatePickerModel | undefined) {
+    if (!value || typeof value !== 'object' || !('start' in value) || !value.start) {
+      emit('update:date', undefined)
+      return
     }
-
+    const { start, end } = value as { start: Date; end?: Date }
     emit('update:date', {
-      from: value.start,
-      to: value.end || undefined,
-    });
+      from: start,
+      to: end,
+    })
   },
-});
+})
 </script>

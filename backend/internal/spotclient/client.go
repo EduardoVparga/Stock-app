@@ -1,4 +1,3 @@
-// file name: backend/internal/spotclient/client.go
 package spotclient
 
 import (
@@ -10,13 +9,11 @@ import (
 	"stock-app/internal/domain"
 )
 
-// Client se comunica con la API de precios spot.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
 }
 
-// NewClient crea una nueva instancia del cliente de precios spot.
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL:    baseURL,
@@ -24,7 +21,6 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// FetchSpotPrice obtiene el precio spot para un ticker.
 func (c *Client) FetchSpotPrice(ticker string) (float64, error) {
 	url := fmt.Sprintf("%s/%s", c.baseURL, ticker)
 	resp, err := c.httpClient.Get(url)

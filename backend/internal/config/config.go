@@ -1,4 +1,3 @@
-// file name: backend/internal/config/config.go
 package config
 
 import (
@@ -9,8 +8,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// LoadEnv carga las variables de entorno desde un archivo .env si existe.
-// Debe ser llamado explícitamente desde main.
 func LoadEnv(path string) {
 	if err := godotenv.Load(path); err != nil {
 		log.Println("No se pudo cargar el archivo .env, usando variables de entorno del sistema")

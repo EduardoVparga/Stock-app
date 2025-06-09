@@ -25,7 +25,8 @@ export const columns: ColumnDef<StockAction>[] = [
     accessorKey: "action",
     header: "Rating",
     cell: ({ row }) => {
-      const action = row.getValue("action")?.toLowerCase() ?? '';
+
+      const action = row.original.action.toLowerCase();
       
       let variant: 'default' | 'destructive' | 'outline' = 'outline'; 
       let text = 'Hold';
@@ -66,7 +67,7 @@ export const columns: ColumnDef<StockAction>[] = [
     accessorKey: "time",
     header: "Date",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("time"));
+      const date = new Date(row.getValue("time") as string);
       return h('div', { class: 'text-muted-foreground' }, format(date, "MMM dd, yyyy"));
     },
   },

@@ -1,4 +1,3 @@
-// file name: backend/internal/transport/http/server.go
 package http
 
 import (
@@ -12,17 +11,14 @@ import (
 	"github.com/rs/cors"
 )
 
-// Server expone la API a través de HTTP.
 type Server struct {
 	repo *storage.Repository
 }
 
-// NewServer crea una instancia del servidor HTTP.
 func NewServer(repo *storage.Repository) *Server {
 	return &Server{repo: repo}
 }
 
-// Start inicia el servidor y escucha en el puerto especificado.
 func (s *Server) Start(ctx context.Context, addr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stocks", s.handleGetStocks(ctx))
@@ -41,7 +37,7 @@ func (s *Server) Start(ctx context.Context, addr string) {
 
 func (s *Server) handleGetStocks(ctx context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		stocks, err := s.repo.GetRankedStocks(r.Context()) // Usar el contexto de la request
+		stocks, err := s.repo.GetRankedStocks(r.Context())
 		if err != nil {
 			http.Error(w, "Error al consultar la base de datos", http.StatusInternalServerError)
 			log.Println("DB error:", err)

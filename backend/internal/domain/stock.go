@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// Currency es un float64 que sabe deserializarse desde una cadena tipo "$4.20".
 type Currency float64
 
 func (c *Currency) UnmarshalJSON(data []byte) error {
@@ -26,7 +25,6 @@ func (c *Currency) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// StockInfo representa la información de una acción obtenida de la API externa.
 type StockInfo struct {
 	Action     string    `json:"action"`
 	Brokerage  string    `json:"brokerage"`
@@ -39,7 +37,6 @@ type StockInfo struct {
 	Time       time.Time `json:"time"`
 }
 
-// SpotPriceResponse coincide con el JSON devuelto por la API de precios spot.
 type SpotPriceResponse struct {
 	Spot float64 `json:"spot"`
 }

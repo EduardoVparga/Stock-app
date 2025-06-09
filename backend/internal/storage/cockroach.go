@@ -80,7 +80,6 @@ func (r *Repository) GetActiveTickers(ctx context.Context) ([]string, error) {
 }
 
 func (r *Repository) GetRankedStocks(ctx context.Context) ([]map[string]interface{}, error) {
-	// 1) El view completo convertido a JSONB
 	rows, err := r.pool.Query(ctx,
 		`SELECT to_jsonb(stock_scores) AS data
          FROM stock_scores
@@ -93,13 +92,11 @@ func (r *Repository) GetRankedStocks(ctx context.Context) ([]map[string]interfac
 
 	var results []map[string]interface{}
 	for rows.Next() {
-		// recibimos el JSON en crudo
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			return nil, err
 		}
 
-		// lo unmarshaleamos a un map[string]interface{}
 		var m map[string]interface{}
 		if err := json.Unmarshal(raw, &m); err != nil {
 			return nil, err

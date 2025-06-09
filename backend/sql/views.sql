@@ -1,4 +1,4 @@
-CREATE VIEW stock_scores AS
+CREATE OR REPLACE VIEW stock_scores AS
 WITH inf AS (
   SELECT 
     spt.ticker,
@@ -15,21 +15,21 @@ WITH inf AS (
     spt.price                                               AS spot,
     spt.loaded_at                                           AS last_updated
   FROM stockinfo AS sto
-    JOIN spotprices AS spt
-      ON sto.ticker = spt.ticker
-    JOIN ratingscale AS rtg
-      ON sto.rating_to = rtg.rating
+    JOIN spotprices AS spt    ON sto.ticker = spt.ticker
+    JOIN ratingscale AS rtg   ON sto.rating_to = rtg.rating
 ),
 stats AS (
   SELECT
-    AVG(upside)    AS mean_upside,
-    STDDEV(upside) AS std_upside
+    AVG(upside)      AS mean_upside,
+    STDDEV(upside)   AS std_upside,
+    AVG(sentiment)   AS mean_sentiment,
+    STDDEV(sentiment) AS std_sentiment
   FROM inf
 ),
 scored AS (
   SELECT
     inf.*,
-    1 * inf.sentiment + 10 * (inf.upside - stats.mean_upside) / stats.std_upside    AS score
+    1 * ((inf.sentiment - stats.mean_sentiment) / NULLIF(stats.std_sentiment, 0)) + 10 * ((inf.upside    - stats.mean_upside)    / NULLIF(stats.std_upside,    0)) AS score
   FROM inf
   CROSS JOIN stats
 )

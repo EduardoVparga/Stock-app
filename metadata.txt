@@ -49,7 +49,7 @@
 import { computed } from 'vue'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import { Calendar as CalendarIcon, XIcon } from 'lucide-vue-next' 
+import { Calendar as CalendarIcon, XIcon } from 'lucide-vue-next'
 import { DatePicker as VDatePicker } from 'v-calendar'
 import 'v-calendar/style.css'
 
@@ -60,6 +60,7 @@ interface AppDateRange {
   from?: Date
   to?: Date
 }
+
 
 interface VCalendarDateRange {
   start: Date | null
@@ -76,10 +77,11 @@ const clearDate = () => {
   emit('update:date', undefined);
 };
 
-const selectedDateRange = computed<VCalendarDateRange | undefined>({
+
+const selectedDateRange = computed<VCalendarDateRange | null>({
   get: () => {
     if (!props.date || !props.date.from) {
-      return undefined
+      return null
     }
     return {
       start: props.date.from,
@@ -663,31 +665,20 @@ const selectedDateRange = computed<VCalendarDateRange | undefined>({
   </script>
 
 # file name: src/components/stock-actions/TopRankedStocks.vue ------------------------------------------
-      
 <template>
   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-    <div 
+    <RankedStockCard 
       v-for="stock in stocks" 
       :key="stock.id"
-      @click="$emit('stockSelect', stock)"
-      class="flex-shrink-0 p-4 rounded-lg cursor-pointer transition-transform duration-200 hover:-translate-y-1 bg-card border border-border/60 shadow-sm hover:shadow-lg"
-    >
-      <div class="h-16 w-16 mx-auto mb-3 rounded-full bg-secondary flex items-center justify-center">
-        <TrophyIcon class="h-8 w-8 text-primary" />
-      </div>
-      <h3 class="font-bold text-center text-foreground truncate" :title="stock.company">{{ stock.company }}</h3>
-      <p 
-        :class="['text-center font-semibold text-sm', stock.upside >= 0 ? 'text-green-500' : 'text-red-500']"
-      >
-        {{ stock.upside >= 0 ? 'Up' : 'Down' }} {{ Math.abs(stock.upside).toFixed(2) }}%
-      </p>
-    </div>
+      :stock="stock"
+      @card-click="$emit('stockSelect', stock)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { StockAction } from '@/types/stock-action';
-import { TrophyIcon } from 'lucide-vue-next';
+import RankedStockCard from './RankedStockCard.vue'; 
 
 defineProps<{
   stocks: StockAction[]
@@ -695,8 +686,6 @@ defineProps<{
 
 defineEmits(['stockSelect']);
 </script>
-
-  
 
 # file name: src/components/stock-actions/columns.ts ------------------------------------------
 import { h } from 'vue'
@@ -726,7 +715,8 @@ export const columns: ColumnDef<StockAction>[] = [
     accessorKey: "action",
     header: "Rating",
     cell: ({ row }) => {
-      const action = row.getValue("action")?.toLowerCase() ?? '';
+
+      const action = row.original.action.toLowerCase();
       
       let variant: 'default' | 'destructive' | 'outline' = 'outline'; 
       let text = 'Hold';
@@ -767,7 +757,7 @@ export const columns: ColumnDef<StockAction>[] = [
     accessorKey: "time",
     header: "Date",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("time"));
+      const date = new Date(row.getValue("time") as string);
       return h('div', { class: 'text-muted-foreground' }, format(date, "MMM dd, yyyy"));
     },
   },
@@ -781,7 +771,6 @@ export const columns: ColumnDef<StockAction>[] = [
   </template>
   <script setup lang="ts">
   import { cva, type VariantProps } from 'class-variance-authority'
-  import { cn } from '@/lib/utils'
   
   const badgeVariants = cva(
     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -818,7 +807,6 @@ export const columns: ColumnDef<StockAction>[] = [
   
   <script setup lang="ts">
   import { cva, type VariantProps } from 'class-variance-authority'
-  import { cn } from '@/lib/utils'
   
   const buttonVariants = cva(
     "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",

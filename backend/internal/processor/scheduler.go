@@ -1,4 +1,3 @@
-// file name: backend/internal/processor/scheduler.go
 package processor
 
 import (
@@ -11,13 +10,11 @@ import (
 	"stock-app/internal/storage"
 )
 
-// Scheduler gestiona la actualización periódica de los precios spot.
 type Scheduler struct {
 	repo       *storage.Repository
 	spotClient *spotclient.Client
 }
 
-// NewScheduler crea una nueva instancia del planificador.
 func NewScheduler(repo *storage.Repository, spotClient *spotclient.Client) *Scheduler {
 	return &Scheduler{
 		repo:       repo,
@@ -25,13 +22,11 @@ func NewScheduler(repo *storage.Repository, spotClient *spotclient.Client) *Sche
 	}
 }
 
-// Start inicia el ciclo de actualización periódica.
 func (s *Scheduler) Start(ctx context.Context) {
 	log.Println("▶️  Iniciando el planificador de actualización de precios...")
 	ticker := time.NewTicker(30 * time.Minute)
 	defer ticker.Stop()
 
-	// Ejecutar una vez al inicio
 	go s.processTickers(ctx)
 
 	for {
@@ -58,7 +53,6 @@ func (s *Scheduler) processTickers(ctx context.Context) {
 		return
 	}
 
-	// Procesar en lotes concurrentes para no sobrecargar la API de precios
 	batches := splitIntoBatches(tickers, 3)
 	var wg sync.WaitGroup
 	wg.Add(len(batches))

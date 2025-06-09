@@ -1,4 +1,3 @@
-// file name: backend/internal/apidata/client.go
 package apidata
 
 import (
@@ -12,13 +11,11 @@ import (
 	"stock-app/internal/domain"
 )
 
-// Client se comunica con la API de datos de acciones.
 type Client struct {
 	cfg        config.API
 	httpClient *http.Client
 }
 
-// NewClient crea una nueva instancia del cliente de apidata.
 func NewClient(cfg config.API) *Client {
 	return &Client{
 		cfg:        cfg,
@@ -31,7 +28,6 @@ type apiResponse struct {
 	NextPage string             `json:"next_page"`
 }
 
-// FetchAll recorre todas las páginas de la API y devuelve todos los ítems.
 func (c *Client) FetchAll(ctx context.Context) ([]domain.StockInfo, error) {
 	var all []domain.StockInfo
 	nextPage := ""
