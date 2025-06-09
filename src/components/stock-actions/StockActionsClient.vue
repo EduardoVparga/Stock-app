@@ -7,6 +7,13 @@
         </p>
       </header>
   
+      <TopRankedStocks 
+        v-if="topRankedStocks.length > 0"
+        :stocks="topRankedStocks" 
+        @stockSelect="handleRowClick"
+        class="mb-8"
+      />
+  
       <StockActionFilters
         :search-term="searchTerm"
         @update:searchTerm="searchTerm = $event"
@@ -41,11 +48,10 @@
   import { ref, computed, watch } from 'vue'
   import type { StockAction } from "@/types/stock-action"
   import StockActionsTable from "./StockActionsTable.vue"
-  import { columns } from "./columns" // Vue version of columns.ts
+  import { columns } from "./columns"
   import StockActionFilters from "./StockActionFilters.vue"
   import StockDetailModal from "./StockDetailModal.vue"
-  // import type { DateRange } from "react-day-picker" // Replaced by local or v-calendar type
-  // Define AppDateRange if not imported from DateRangePicker.vue
+  import TopRankedStocks from './TopRankedStocks.vue'
   interface DateRange {
     from?: Date
     to?: Date
@@ -65,6 +71,12 @@
     
   const selectedStockAction = ref<StockAction | null>(null)
   const isModalOpen = ref(false)
+
+  const topRankedStocks = computed(() => {
+    return [...props.initialData]
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 5);
+  });
   
   const actionTypes = computed(() => {
     const uniqueActions = new Set(props.initialData.map(item => item.action.toLowerCase()));

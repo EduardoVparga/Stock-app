@@ -6,15 +6,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function parsePrice(priceString: string | null | undefined): number | null {
-  if (!priceString) return null;
-  const numberString = priceString.replace('$', '').replace(',', '');
-  const price = parseFloat(numberString);
-  return isNaN(price) ? null : price;
-}
-
 export function formatPrice(price: number | null | undefined): string {
   if (price === null || price === undefined) return "N/A";
+  // Puedes decidir si usar toFixed(2) si los precios pueden tener decimales
   return `$${price.toFixed(2)}`;
 }
 

@@ -7,7 +7,7 @@ import { ArrowUpDown } from "lucide-vue-next"
 import type { StockAction } from "@/types/stock-action"
 import Button from "@/components/ui/Button.vue" // Vue Button
 import Badge from "@/components/ui/Badge.vue"   // Vue Badge
-import { parsePrice, formatPrice } from "@/lib/utils"
+import { formatPrice } from "@/lib/utils"
 
 export const columns: ColumnDef<StockAction>[] = [
   {
@@ -88,8 +88,8 @@ export const columns: ColumnDef<StockAction>[] = [
     id: "priceTargetChange",
     header: "Price Target",
     cell: ({ row }) => {
-      const targetFrom = parsePrice(row.original.target_from)
-      const targetTo = parsePrice(row.original.target_to)
+      const targetFrom = row.original.target_from
+      const targetTo = row.original.target_to
 
       const formattedFrom = formatPrice(targetFrom)
       const formattedTo = formatPrice(targetTo)

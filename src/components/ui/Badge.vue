@@ -1,5 +1,5 @@
 <template>
-    <div :class="badgeVariants({ variant, class: props.class })" v_bind="$attrs">
+    <div :class="badgeVariants({ variant, class: props.class })" v-bind="$attrs">
       <slot />
     </div>
   </template>

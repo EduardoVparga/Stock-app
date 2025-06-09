@@ -73,7 +73,7 @@
   import Separator from "@/components/ui/Separator.vue"
   import { format } from "date-fns"
   import { ExternalLink } from "lucide-vue-next"
-  import { formatPrice, parsePrice } from "@/lib/utils"
+  import { formatPrice } from "@/lib/utils"
   
   interface StockDetailModalProps {
     stockAction: StockAction | null
@@ -83,8 +83,8 @@
   const props = defineProps<StockDetailModalProps>()
   const emit = defineEmits(['update:isOpen'])
   
-  const targetFrom = computed(() => props.stockAction ? parsePrice(props.stockAction.target_from) : null)
-  const targetTo = computed(() => props.stockAction ? parsePrice(props.stockAction.target_to) : null)
+  const targetFrom = computed(() => props.stockAction ? props.stockAction.target_from : null)
+  const targetTo = computed(() => props.stockAction ? props.stockAction.target_to : null)
   
   const priceTargetColorClass = computed(() => {
     if (!props.stockAction) return "text-foreground";

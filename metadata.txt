@@ -1,0 +1,1676 @@
+# file name: src/components/stock-actions/columns.ts ------------------------------------------
+// src/components/stock-actions/columns.ts
+import { h } from 'vue'
+import type { ColumnDef } from "@tanstack/vue-table"
+import { format } from "date-fns"
+import { ArrowUpDown } from "lucide-vue-next"
+
+import type { StockAction } from "@/types/stock-action"
+import Button from "@/components/ui/Button.vue" // Vue Button
+import Badge from "@/components/ui/Badge.vue"   // Vue Badge
+import { formatPrice } from "@/lib/utils"
+
+export const columns: ColumnDef<StockAction>[] = [
+  {
+    accessorKey: "time",
+    header: ({ column }) => {
+      return h(Button, {
+        variant: "ghost",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      }, () => [
+        'Date',
+        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
+      ])
+    },
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("time"))
+      return h('div', { class: 'text-sm' }, format(date, "MMM dd, yyyy"))
+    },
+    // Enable sorting for this column if desired
+    enableSorting: true,
+  },
+  {
+    accessorKey: "brokerage",
+    header: ({ column }) => {
+      return h(Button, {
+        variant: "ghost",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      }, () => [
+        'Brokerage',
+        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
+      ])
+    },
+    cell: ({ row }) => h('div', { class: 'text-sm' }, row.getValue("brokerage")),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "ticker",
+    header: ({ column }) => {
+      return h(Button, {
+        variant: "ghost",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      }, () => [
+        'Ticker',
+        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
+      ])
+    },
+    cell: ({ row }) => h(Badge, { variant: "secondary" }, () => row.getValue("ticker")),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "company",
+    header: ({ column }) => {
+      return h(Button, {
+        variant: "ghost",
+        onClick: () => column.toggleSorting(column.getIsSorted() === "asc"),
+      }, () => [
+        'Company',
+        h(ArrowUpDown, { class: "ml-2 h-4 w-4" })
+      ])
+    },
+    cell: ({ row }) => h('div', { class: 'font-medium text-sm' }, row.getValue("company")),
+    enableSorting: true,
+  },
+  {
+    accessorKey: "action",
+    header: "Action",
+    cell: ({ row }) => h('div', { class: 'capitalize text-sm' }, row.getValue("action")),
+  },
+  {
+    id: "ratingChange",
+    header: "Rating",
+    cell: ({ row }) => {
+      const ratingFrom = row.original.rating_from || "N/A"
+      const ratingTo = row.original.rating_to
+      return h('div', { class: 'text-sm whitespace-nowrap' }, `${ratingFrom} → ${ratingTo}`)
+    },
+  },
+  {
+    id: "priceTargetChange",
+    header: "Price Target",
+    cell: ({ row }) => {
+      const targetFrom = row.original.target_from
+      const targetTo = row.original.target_to
+
+      const formattedFrom = formatPrice(targetFrom)
+      const formattedTo = formatPrice(targetTo)
+      
+      let colorClass = "text-foreground" // Default color
+      if (targetTo !== null && targetFrom !== null) {
+        if (targetTo > targetFrom) {
+          colorClass = "text-green-600 dark:text-green-500"
+        } else if (targetTo < targetFrom) {
+          colorClass = "text-red-600 dark:text-red-500"
+        }
+      } else if (targetTo !== null && targetFrom === null && row.original.action.toLowerCase().includes("initiated")) {
+        colorClass = "text-green-600 dark:text-green-500"
+      }
+
+      return h('div', { class: `text-sm font-semibold whitespace-nowrap ${colorClass}` }, 
+        `${formattedFrom} → ${formattedTo}`
+      )
+    },
+  },
+]
+
+# file name: src/components/stock-actions/DateRangePicker.vue ------------------------------------------
+<template>
+  <div :class="cn('grid gap-2', $attrs.class as string)">
+    <VDatePicker
+      v-model.range="selectedDateRange"
+      mode="date"
+      :masks="{ modelValue: 'YYYY-MM-DD' }"
+      :popover="{ visibility: 'click' }"
+      is-range
+      :locale="enUS"
+    >
+      <template #default="{ togglePopover, inputValue }">
+        <Button
+          id="date"
+          variant="outline"
+          :class="cn(
+            'w-full justify-start text-left font-normal',
+            !date?.from && 'text-muted-foreground'
+          )"
+          @click="() => togglePopover()"
+        >
+          <CalendarIcon class="mr-2 h-4 w-4" />
+          <span v-if="date?.from && date.to">
+            {{ format(date.from, "LLL dd, y") }} - {{ format(date.to, "LLL dd, y") }}
+          </span>
+          <span v-else-if="date?.from">
+            {{ format(date.from, "LLL dd, y") }}
+          </span>
+          <span v-else>Pick a date range</span>
+        </Button>
+      </template>
+    </VDatePicker>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+import { format } from 'date-fns'
+import { enUS } from 'date-fns/locale'
+import { Calendar as CalendarIcon } from 'lucide-vue-next'
+import { DatePicker as VDatePicker } from 'v-calendar'
+import 'v-calendar/style.css'
+
+import { cn } from '@/lib/utils'
+import Button from '@/components/ui/Button.vue'
+import type { DateRange as AppDateRange } from './StockActionsClient.vue'
+
+interface VCalendarDateRange {
+  start: Date | null
+  end: Date | null
+}
+
+interface Props {
+  date?: AppDateRange
+}
+const props = defineProps<Props>()
+const emit = defineEmits(['update:date'])
+
+const selectedDateRange = computed<VCalendarDateRange | undefined>({
+  get: () => {
+    if (!props.date || !props.date.from) {
+      return undefined
+    }
+    return {
+      start: props.date.from,
+      end: props.date.to || null,
+    }
+  },
+  set: (value) => {
+    if (!value) {
+      emit('update:date', undefined);
+      return;
+    }
+
+    emit('update:date', {
+      from: value.start || undefined,
+      to: value.end || undefined,
+    });
+  },
+});
+</script>
+
+# file name: src/components/stock-actions/StockActionFilters.vue ------------------------------------------
+<template>
+    <div class="p-4 md:p-6 space-y-4 rounded-lg shadow-sm border bg-card">
+      <div class="flex flex-col md:flex-row gap-4 items-center">
+        <div class="relative w-full md:flex-grow">
+          <SearchIcon class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search company, ticker, or brokerage..."
+            :modelValue="searchTerm"
+            @update:modelValue="$emit('update:searchTerm', $event)"
+            class="pl-10 pr-4 py-2 w-full"
+          />
+        </div>
+        <Button variant="outline" @click="showFilters = !showFilters" class="w-full md:w-auto">
+          <FilterIcon class="h-4 w-4 mr-2" />
+          {{ showFilters ? "Hide Filters" : "Show Filters" }}
+        </Button>
+        <Button v-if="hasActiveFilters" variant="ghost" @click="clearFilters" class="w-full md:w-auto text-sm">
+          <XIcon class="h-4 w-4 mr-2" />
+          Clear Filters
+        </Button>
+      </div>
+  
+      <div v-if="showFilters" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+        <!-- Using basic select for brevity, replace with custom Select.vue or Headless UI -->
+        
+        
+        
+        <select
+          :value="selectedAction || ALL_FILTER_VALUE"
+          @change="$emit('update:selectedAction', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
+          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option :value="ALL_FILTER_VALUE">All Action Types</option>
+          <option v-for="action in actionTypes" :key="action" :value="action" class="capitalize">
+            {{ action }}
+          </option>
+        </select>
+        
+
+
+        <select
+          :value="selectedBrokerage || ALL_FILTER_VALUE"
+          @change="$emit('update:selectedBrokerage', ($event.target as HTMLSelectElement).value === ALL_FILTER_VALUE ? '' : ($event.target as HTMLSelectElement).value)"
+          class="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option :value="ALL_FILTER_VALUE">All Brokerages</option>
+          <option v-for="brokerage in brokerageFirms" :key="brokerage" :value="brokerage">
+            {{ brokerage }}
+          </option>
+        </select>
+  
+        <DateRangePicker :date="dateRange" @update:date="$emit('update:dateRange', $event)" class="w-full" />
+      </div>
+    </div>
+  </template>
+  
+  <script setup lang="ts">
+  import { ref, computed } from 'vue'
+  import type { AppDateRange } from './DateRangePicker.vue' // Assuming AppDateRange is exported or define it here
+  import Input from "@/components/ui/Input.vue"
+  // If using the custom SelectProvider and parts:
+  // import SelectProvider from "@/components/ui/SelectProvider.vue"
+  // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/SelectParts.vue"
+  import DateRangePicker from "./DateRangePicker.vue"
+  import { XIcon, SearchIcon, FilterIcon } from "lucide-vue-next"
+  import Button from "@/components/ui/Button.vue"
+  
+  interface DateRange { // Define AppDateRange if not imported
+    from?: Date
+    to?: Date
+  }
+  
+  interface StockActionFiltersProps {
+    searchTerm: string
+    selectedAction: string
+    selectedBrokerage: string
+    dateRange?: DateRange
+    actionTypes: string[]
+    brokerageFirms: string[]
+  }
+  
+  const props = defineProps<StockActionFiltersProps>()
+  
+  const emit = defineEmits([
+    'update:searchTerm',
+    'update:selectedAction',
+    'update:selectedBrokerage',
+    'update:dateRange',
+    'clearFilters'
+  ])
+  
+  const showFilters = ref(false)
+  const ALL_FILTER_VALUE = "__ALL_FILTERS__";
+  
+  const hasActiveFilters = computed(() => 
+    props.searchTerm || props.selectedAction || props.selectedBrokerage || props.dateRange?.from
+  )
+  
+  const clearFilters = () => {
+    emit('clearFilters')
+  }
+  </script>
+
+# file name: src/components/stock-actions/StockActionsClient.vue ------------------------------------------
+<template>
+    <div class="container mx-auto py-6 px-4 md:px-0">
+      <header class="mb-8 text-center">
+        <h1 class="text-4xl font-bold text-primary">StockAction Insights</h1>
+        <p class="text-muted-foreground mt-2 text-lg">
+          Track and analyze stock rating changes from various brokerages.
+        </p>
+      </header>
+  
+      <StockActionFilters
+        :search-term="searchTerm"
+        @update:searchTerm="searchTerm = $event"
+        :selected-action="selectedAction"
+        @update:selectedAction="selectedAction = $event"
+        :selected-brokerage="selectedBrokerage"
+        @update:selectedBrokerage="selectedBrokerage = $event"
+        :date-range="dateRange"
+        @update:dateRange="dateRange = $event"
+        :action-types="actionTypes"
+        :brokerage-firms="brokerageFirms"
+        @clearFilters="clearFilters"
+      />
+  
+      <div class="mt-8">
+        <StockActionsTable
+          :columns="columns"
+          :data="filteredData"
+          :on-row-click="handleRowClick"
+        />
+      </div>
+  
+      <StockDetailModal
+        :stock-action="selectedStockAction"
+        :is-open="isModalOpen"
+        @update:isOpen="isModalOpen = $event"
+      />
+    </div>
+  </template>
+  
+  <script setup lang="ts">
+  import { ref, computed, watch } from 'vue'
+  import type { StockAction } from "@/types/stock-action"
+  import StockActionsTable from "./StockActionsTable.vue"
+  import { columns } from "./columns" // Vue version of columns.ts
+  import StockActionFilters from "./StockActionFilters.vue"
+  import StockDetailModal from "./StockDetailModal.vue"
+  // import type { DateRange } from "react-day-picker" // Replaced by local or v-calendar type
+  // Define AppDateRange if not imported from DateRangePicker.vue
+  interface DateRange {
+    from?: Date
+    to?: Date
+  }
+  
+  
+  interface StockActionsClientProps {
+    initialData: StockAction[]
+  }
+  
+  const props = defineProps<StockActionsClientProps>()
+  
+  const searchTerm = ref("")
+  const selectedAction = ref("")
+  const selectedBrokerage = ref("")
+  const dateRange = ref<DateRange | undefined>(undefined)
+    
+  const selectedStockAction = ref<StockAction | null>(null)
+  const isModalOpen = ref(false)
+  
+  const actionTypes = computed(() => {
+    const uniqueActions = new Set(props.initialData.map(item => item.action.toLowerCase()));
+    return Array.from(uniqueActions).map(action => 
+        action.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    );
+  });
+  
+  const brokerageFirms = computed(() => 
+    Array.from(new Set(props.initialData.map(item => item.brokerage))).sort()
+  );
+  
+  const filteredData = computed(() => {
+    let data = [...props.initialData]
+  
+    if (searchTerm.value) {
+      const lowerSearchTerm = searchTerm.value.toLowerCase()
+      data = data.filter(
+        (item) =>
+          item.company.toLowerCase().includes(lowerSearchTerm) ||
+          item.ticker.toLowerCase().includes(lowerSearchTerm) ||
+          item.brokerage.toLowerCase().includes(lowerSearchTerm)
+      )
+    }
+  
+    if (selectedAction.value) {
+      data = data.filter(
+        (item) => item.action.toLowerCase() === selectedAction.value.toLowerCase()
+      )
+    }
+  
+    if (selectedBrokerage.value) {
+      data = data.filter(
+        (item) => item.brokerage === selectedBrokerage.value
+      )
+    }
+  
+    if (dateRange.value?.from) {
+      data = data.filter((item) => {
+        const itemDate = new Date(item.time)
+        itemDate.setHours(0,0,0,0); 
+        
+        let fromDate = new Date(dateRange.value!.from!);
+        fromDate.setHours(0,0,0,0); 
+  
+        if (dateRange.value!.to) {
+          let toDate = new Date(dateRange.value!.to!);
+          toDate.setHours(23,59,59,999); 
+          return itemDate >= fromDate && itemDate <= toDate;
+        }
+        return itemDate >= fromDate;
+      })
+    }
+    return data
+  })
+  
+  const handleRowClick = (stockActionItem: StockAction) => {
+    selectedStockAction.value = stockActionItem
+    isModalOpen.value = true
+  }
+  
+  const clearFilters = () => {
+    searchTerm.value = "";
+    selectedAction.value = "";
+    selectedBrokerage.value = "";
+    dateRange.value = undefined;
+  };
+  
+  </script>
+
+# file name: src/components/stock-actions/StockActionsTable.vue ------------------------------------------
+<template>
+    <div class="w-full">
+      <div class="rounded-md border shadow-sm bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+              <TableHead
+                v-for="header in headerGroup.headers"
+                :key="header.id"
+                :colSpan="header.colSpan"
+                class="whitespace-nowrap px-3 py-3 text-sm"
+                :style="{ width: header.getSize() !== 150 ? `${header.getSize()}px` : undefined }"
+              >
+                <FlexRender
+                  v-if="!header.isPlaceholder"
+                  :render="header.column.columnDef.header"
+                  :props="header.getContext()"
+                />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-if="table.getRowModel().rows?.length">
+              <TableRow
+                v-for="row in table.getRowModel().rows"
+                :key="row.id"
+                :data-state="row.getIsSelected() ? 'selected' : undefined"
+                @click="() => onRowClick(row.original as TData)"
+                class="cursor-pointer hover:bg-muted/50 transition-colors"
+              >
+                <TableCell
+                  v-for="cell in row.getVisibleCells()"
+                  :key="cell.id"
+                  class="px-3 py-3 text-sm"
+                >
+                  <FlexRender
+                    :render="cell.column.columnDef.cell"
+                    :props="cell.getContext()"
+                  />
+                </TableCell>
+              </TableRow>
+            </template>
+            <template v-else>
+              <TableRow>
+                <TableCell :colSpan="columns.length" class="h-24 text-center">
+                  No results found.
+                </TableCell>
+              </TableRow>
+            </template>
+          </TableBody>
+        </Table>
+      </div>
+      <div class="flex items-center justify-end space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          @click="table.previousPage()"
+          :disabled="!table.getCanPreviousPage()"
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          @click="table.nextPage()"
+          :disabled="!table.getCanNextPage()"
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  </template>
+  
+  <script setup lang="ts" generic="TData extends StockAction, TValue">
+  import { ref, onMounted, onBeforeUnmount, watchEffect, toRefs } from 'vue'
+  import type {
+    ColumnDef,
+    SortingState,
+    VisibilityState,
+    ColumnFiltersState,
+  } from "@tanstack/vue-table"
+  import {
+    FlexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    getSortedRowModel,
+    useVueTable,
+  } from "@tanstack/vue-table"
+  
+
+  import Table from "@/components/ui/Table.vue"
+  import TableBody from "@/components/ui/TableBody.vue"
+  import TableCell from "@/components/ui/TableCell.vue"
+  import TableHead from "@/components/ui/TableHead.vue"
+  import TableHeader from "@/components/ui/TableHeader.vue"
+  import TableRow from "@/components/ui/TableRow.vue"
+
+  import Button from "@/components/ui/Button.vue"
+  import type { StockAction } from "@/types/stock-action"
+  
+  interface DataTableProps {
+    columns: ColumnDef<TData, TValue>[]
+    data: TData[]
+    onRowClick: (row: TData) => void
+  }
+  
+  const props = defineProps<DataTableProps>()
+  const { columns, data, onRowClick } = toRefs(props)
+  
+  const sorting = ref<SortingState>([])
+  const columnFilters = ref<ColumnFiltersState>([])
+  const columnVisibility = ref<VisibilityState>({
+    'brokerage': false, 
+    'ratingChange': false,
+  })
+  
+  const hasMounted = ref(false);
+  
+  onMounted(() => {
+    hasMounted.value = true;
+  });
+  
+  const table = useVueTable({
+    get data() { return data.value },
+    get columns() { return columns.value },
+    state: {
+      get sorting() { return sorting.value },
+      get columnFilters() { return columnFilters.value },
+      get columnVisibility() { return columnVisibility.value },
+    },
+    onSortingChange: (updater) => {
+      sorting.value = typeof updater === 'function' ? updater(sorting.value) : updater
+    },
+    onColumnFiltersChange: (updater) => {
+      columnFilters.value = typeof updater === 'function' ? updater(columnFilters.value) : updater
+    },
+    onColumnVisibilityChange: (updater) => {
+      columnVisibility.value = typeof updater === 'function' ? updater(columnVisibility.value) : updater
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+  })
+  
+  const handleResize = () => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 768) { // Tailwind's 'md' breakpoint
+        table.setColumnVisibility({
+          ...columnVisibility.value, // preserve other explicit visibilities
+          'brokerage': false,
+          'ratingChange': false,
+          'time': false,
+        });
+      } else {
+        table.setColumnVisibility({
+          ...columnVisibility.value,
+          'brokerage': true,
+          'ratingChange': true,
+          'time': true,
+        });
+      }
+    }
+  };
+  
+  onMounted(() => {
+    if (typeof window !== 'undefined') {
+      handleResize(); // Initial check
+      window.addEventListener('resize', handleResize);
+    }
+  });
+  
+  onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', handleResize);
+    }
+  });
+  
+  // The hasMounted check for rendering is less critical in Vue for this specific resize logic,
+  // as DOM access is typically safer in onMounted. If there were truly conditional rendering
+  // based on window that could cause hydration mismatch, techniques like <ClientOnly> or
+  // v-if="hasMounted" on the whole component might be used. For now, the logic inside
+  // onMounted should suffice.
+  </script>
+
+# file name: src/components/stock-actions/StockDetailModal.vue ------------------------------------------
+<template>
+    <Sheet :open="isOpen" @update:open="$emit('update:isOpen', $event)" dialogClass="sm:max-w-lg w-[90vw]">
+      <!-- SheetContent is just a div wrapper in my basic example, so structure inside Sheet -->
+      <SheetContent v-if="stockAction">
+        <SheetHeader class="mb-6">
+          <SheetTitle class="text-2xl font-bold">
+            {{ stockAction.company }} ({{ stockAction.ticker }})
+          </SheetTitle>
+          <SheetDescription>
+            Action by {{ stockAction.brokerage }} on
+            {{ format(new Date(stockAction.time), "MMMM dd, yyyy 'at' HH:mm") }}
+          </SheetDescription>
+        </SheetHeader>
+  
+        <div class="space-y-4 text-sm">
+          <div>
+            <h4 class="font-semibold text-muted-foreground">Action Type</h4>
+            <p class="capitalize">{{ stockAction.action }}</p>
+          </div>
+          <Separator />
+          <div>
+            <h4 class="font-semibold text-muted-foreground">Rating Change</h4>
+            <p>
+              {{ stockAction.rating_from || "N/A" }} → {{ stockAction.rating_to }}
+            </p>
+          </div>
+          <Separator />
+          <div>
+            <h4 class="font-semibold text-muted-foreground">Price Target Change</h4>
+            <p :class="priceTargetColorClass">
+              {{ formatPrice(targetFrom) }} → {{ formatPrice(targetTo) }}
+            </p>
+          </div>
+          <Separator />
+          <div>
+            <h4 class="font-semibold text-muted-foreground">External Links</h4>
+            <div class="space-y-1 mt-1">
+              <Button variant="link" class="p-0 h-auto text-primary hover:underline" as-child>
+                <a :href="`https://finance.yahoo.com/quote/${stockAction.ticker}`" target="_blank" rel="noopener noreferrer">
+                  Yahoo Finance <ExternalLink class="ml-1 h-3 w-3 inline" />
+                </a>
+              </Button>
+              <br />
+              <Button variant="link" class="p-0 h-auto text-primary hover:underline" as-child>
+                <a :href="`https://seekingalpha.com/symbol/${stockAction.ticker}`" target="_blank" rel="noopener noreferrer">
+                  Seeking Alpha <ExternalLink class="ml-1 h-3 w-3 inline" />
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        <SheetFooter class="mt-8">
+          <Button @click="$emit('update:isOpen', false)" variant="outline">
+            Close
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  </template>
+  
+  <script setup lang="ts">
+  import { computed } from 'vue'
+  import type { StockAction } from "@/types/stock-action"
+
+  import Sheet from "@/components/ui/Sheet.vue"
+  import SheetContent from "@/components/ui/SheetContent.vue"
+  import SheetHeader from "@/components/ui/SheetHeader.vue"
+  import SheetTitle from "@/components/ui/SheetTitle.vue"
+  import SheetDescription from "@/components/ui/SheetDescription.vue"
+  import SheetFooter from "@/components/ui/SheetFooter.vue"
+  import Button from "@/components/ui/Button.vue"
+  import Separator from "@/components/ui/Separator.vue"
+  import { format } from "date-fns"
+  import { ExternalLink } from "lucide-vue-next"
+  import { formatPrice } from "@/lib/utils"
+  
+  interface StockDetailModalProps {
+    stockAction: StockAction | null
+    isOpen: boolean
+  }
+  
+  const props = defineProps<StockDetailModalProps>()
+  const emit = defineEmits(['update:isOpen'])
+  
+  const targetFrom = computed(() => props.stockAction ? props.stockAction.target_from : null)
+  const targetTo = computed(() => props.stockAction ? props.stockAction.target_to : null)
+  
+  const priceTargetColorClass = computed(() => {
+    if (!props.stockAction) return "text-foreground";
+    
+    const tf = targetFrom.value;
+    const tt = targetTo.value;
+  
+    let colorClass = "text-foreground";
+    if (tt !== null && tf !== null) {
+      if (tt > tf) colorClass = "text-green-600 dark:text-green-500";
+      else if (tt < tf) colorClass = "text-red-600 dark:text-red-500";
+    } else if (tt !== null && tf === null && props.stockAction.action.toLowerCase().includes("initiated")) {
+       colorClass = "text-green-600 dark:text-green-500";
+    }
+    return colorClass;
+  })
+  
+  // The asChild prop for Button is a pattern from Radix.
+  // For simple cases, you can wrap the <a> tag in the <Button> slot,
+  // or style the <a> tag to look like a button if `asChild` implies rendering the child as the button.
+  // My basic Button.vue doesn't support `asChild`. You'd typically just put an <a> inside a <button> or style the <a>.
+  // Here, I'll assume the Button with variant="link" is styled like a link and can contain an <a>.
+  // For true `asChild` behavior (where the Button component renders an `<a>` tag), you'd need a more complex Button component.
+  // A common Vue pattern is to pass `tag="a"` to the Button component if it supports dynamic root elements.
+  // Given the usage `variant="link"`, it's likely an `<a>` styled as a button or a button that behaves like a link.
+  // I'll adjust the Button component to accept `as="a"` or similar for this behavior. Or simply:
+  // <a :href="..." class="p-0 h-auto text-primary hover:underline ... (button link styles)">...</a>
+  // For simplicity, I'll keep the Button component and rely on its `link` variant styling.
+  </script>
+
+# file name: src/components/ui/Badge.vue ------------------------------------------
+<template>
+    <div :class="badgeVariants({ variant, class: props.class })" v-bind="$attrs">
+      <slot />
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cva, type VariantProps } from 'class-variance-authority'
+  import { cn } from '@/lib/utils'
+  
+  const badgeVariants = cva(
+    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+    {
+      variants: {
+        variant: {
+          default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+          secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+          outline: "text-foreground",
+        },
+      },
+      defaultVariants: {
+        variant: "default",
+      },
+    }
+  )
+  type BadgeProps = VariantProps<typeof badgeVariants>
+  interface Props {
+    variant?: BadgeProps["variant"]
+    class?: string
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    variant: 'default'
+  })
+  </script>
+
+# file name: src/components/ui/Button.vue ------------------------------------------
+<template>
+    <button :class="buttonVariants({ variant, size, class: props.class })" v-bind="$attrs">
+      <slot />
+    </button>
+  </template>
+  
+  <script setup lang="ts">
+  import { cva, type VariantProps } from 'class-variance-authority'
+  import { cn } from '@/lib/utils'
+  
+  const buttonVariants = cva(
+    "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+    {
+      variants: {
+        variant: {
+          default: "bg-primary text-primary-foreground hover:bg-primary/90",
+          destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          ghost: "hover:bg-accent hover:text-accent-foreground",
+          link: "text-primary underline-offset-4 hover:underline",
+        },
+        size: {
+          default: "h-10 px-4 py-2",
+          sm: "h-9 rounded-md px-3",
+          lg: "h-11 rounded-md px-8",
+          icon: "h-10 w-10",
+        },
+      },
+      defaultVariants: {
+        variant: "default",
+        size: "default",
+      },
+    }
+  )
+  
+  type ButtonProps = VariantProps<typeof buttonVariants>;
+  
+  interface Props {
+    variant?: ButtonProps["variant"]
+    size?: ButtonProps["size"]
+    class?: string
+  }
+  
+  const props = withDefaults(defineProps<Props>(), {
+    variant: 'default',
+    size: 'default',
+  })
+  </script>
+
+# file name: src/components/ui/Input.vue ------------------------------------------
+<template>
+    <input
+      :value="modelValue"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      :class="cn('flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50', props.class)"
+      v_bind="$attrs"
+    />
+  </template>
+  
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils'
+  
+  interface Props {
+    modelValue?: string | number
+    class?: string
+  }
+  const props = defineProps<Props>()
+  defineEmits(['update:modelValue'])
+  </script>
+
+# file name: src/components/ui/Select.vue ------------------------------------------
+<template>
+  <div class="relative" ref="selectRef">
+    <slot />
+  </div>
+</template>
+<script setup lang="ts">
+import { ref, provide, onMounted, onUnmounted, watch } from 'vue';
+const props = defineProps<{ modelValue: string | number | undefined }>();
+const emit = defineEmits(['update:modelValue']);
+
+const isOpen = ref(false);
+const selectedValue = ref(props.modelValue);
+const selectRef = ref<HTMLElement | null>(null);
+
+provide('selectIsOpen', isOpen);
+provide('selectSelectedValue', selectedValue);
+provide('selectToggleOpen', () => isOpen.value = !isOpen.value);
+provide('selectClose', () => isOpen.value = false);
+provide('selectUpdateSelectedValue', (val: string | number) => {
+  selectedValue.value = val;
+  emit('update:modelValue', val);
+  isOpen.value = false; // Close after selection
+});
+
+const handleClickOutside = (event: MouseEvent) => {
+  if (selectRef.value && !selectRef.value.contains(event.target as Node)) {
+    isOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  if(typeof document !== 'undefined') document.addEventListener('click', handleClickOutside);
+});
+onUnmounted(() => {
+  if(typeof document !== 'undefined') document.removeEventListener('click', handleClickOutside);
+});
+
+watch(() => props.modelValue, (newVal) => {
+  selectedValue.value = newVal;
+});
+</script>
+
+# file name: src/components/ui/SelectContent.vue ------------------------------------------
+<template>
+    <Transition name="fade-scale">
+      <div v-if="isOpenRef?.value" :class="cn('absolute z-50 min-w-[8rem] overflow-hidden mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2', props.class)">
+        <ul class="max-h-60 overflow-auto p-1">
+          <slot />
+        </ul>
+      </div>
+    </Transition>
+  </template>
+  <script setup lang="ts">
+  import { inject, type Ref } from 'vue';
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  const isOpenRef = inject<Ref<boolean>>('selectIsOpen'); // Renamed to avoid conflict
+  </script>
+  <style scoped>
+  .fade-scale-enter-active,
+  .fade-scale-leave-active {
+    transition: opacity 0.1s ease-out, transform 0.1s ease-out;
+  }
+  .fade-scale-enter-from,
+  .fade-scale-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  </style>
+
+# file name: src/components/ui/SelectItem.vue ------------------------------------------
+<template>
+    <li
+      :class="cn('relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent/50', props.class)"
+      @click="handleClick"
+      role="option"
+      :aria-selected="isSelected"
+      :data-state="isSelected ? 'checked' : 'unchecked'"
+    >
+      <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <CheckIcon v-if="isSelected" class="h-4 w-4" />
+      </span>
+      <slot />
+    </li>
+  </template>
+  <script setup lang="ts">
+  import { inject, computed, type Ref } from 'vue';
+  import { cn } from '@/lib/utils';
+  import { CheckIcon } from 'lucide-vue-next';
+  
+  const props = defineProps<{ value: string | number, class?: string }>();
+  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
+  const updateSelectedValue = inject<(val: string | number) => void>('selectUpdateSelectedValue');
+  const closeSelect = inject<() => void>('selectClose');
+  
+  const isSelected = computed(() => selectedValue?.value === props.value);
+  
+  const handleClick = () => {
+    if (updateSelectedValue) updateSelectedValue(props.value);
+    // closeSelect is now called within updateSelectedValue in Select.vue
+  };
+  </script>
+
+# file name: src/components/ui/SelectParts.vue ------------------------------------------
+<!-- src/components/ui/Select.vue -->
+<template>
+    <div class="relative">
+      <slot />
+    </div>
+  </template>
+  
+  <!-- src/components/ui/SelectTrigger.vue -->
+  <template>
+    <Button variant="outline" :class="cn('w-full justify-between', props.class)" @click="toggleOpen" aria-haspopup="listbox" :aria-expanded="isOpen">
+      <slot name="valuePlaceholder" />
+      <ChevronDownIcon class="h-4 w-4 opacity-50" />
+    </Button>
+  </template>
+  <script setup lang="ts">
+  import { inject, type Ref } from 'vue';
+  import Button from './Button.vue';
+  import { cn } from '@/lib/utils';
+  import { ChevronDownIcon } from 'lucide-vue-next';
+  const props = defineProps<{ class?: string }>();
+  const isOpen = inject<Ref<boolean>>('selectIsOpen');
+  const toggleOpen = inject<() => void>('selectToggleOpen');
+  </script>
+  
+  <!-- src/components/ui/SelectValue.vue -->
+  <template><span><slot /></span></template>
+  
+  <!-- src/components/ui/SelectContent.vue -->
+  <template>
+    <div v-if="isOpen" :class="cn('absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95', props.class)">
+      <ul class="max-h-60 overflow-auto p-1">
+        <slot />
+      </ul>
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { inject, type Ref } from 'vue';
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  const isOpen = inject<Ref<boolean>>('selectIsOpen');
+  </script>
+  
+  <!-- src/components/ui/SelectItem.vue -->
+  <template>
+    <li
+      :class="cn('relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-accent/50', props.class)"
+      @click="handleClick"
+      role="option"
+      :aria-selected="isSelected"
+    >
+      <span v-if="isSelected" class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <CheckIcon class="h-4 w-4" />
+      </span>
+      <slot />
+    </li>
+  </template>
+  <script setup lang="ts">
+  import { inject, computed, type Ref } from 'vue';
+  import { cn } from '@/lib/utils';
+  import { CheckIcon } from 'lucide-vue-next';
+  
+  const props = defineProps<{ value: string | number, class?: string }>();
+  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
+  const updateSelectedValue = inject<(val: string | number) => void>('selectUpdateSelectedValue');
+  const closeSelect = inject<() => void>('selectClose');
+  
+  const isSelected = computed(() => selectedValue?.value === props.value);
+  
+  const handleClick = () => {
+    if (updateSelectedValue) updateSelectedValue(props.value);
+    if (closeSelect) closeSelect();
+  };
+  </script>
+
+# file name: src/components/ui/SelectTrigger.vue ------------------------------------------
+<template>
+    <Button variant="outline" :class="cn('w-full justify-between', props.class)" @click="toggleOpen" aria-haspopup="listbox" :aria-expanded="isOpenRef ? isOpenRef.value : false">
+      <slot /> <!-- This slot will contain SelectValue -->
+      <ChevronDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+  </template>
+  <script setup lang="ts">
+  import { inject, type Ref } from 'vue';
+  import Button from './Button.vue';
+  import { cn } from '@/lib/utils';
+  import { ChevronDownIcon } from 'lucide-vue-next';
+  const props = defineProps<{ class?: string }>();
+  const isOpenRef = inject<Ref<boolean>>('selectIsOpen'); // Renamed to avoid conflict
+  const toggleOpen = inject<() => void>('selectToggleOpen');
+  </script>
+
+# file name: src/components/ui/SelectValue.vue ------------------------------------------
+<template>
+    <span :class="cn(props.placeholder && !hasValue ? 'text-muted-foreground' : '', props.class)">
+      <slot v-if="hasValue" />
+      <template v-else>{{ props.placeholder }}</template>
+    </span>
+  </template>
+  <script setup lang="ts">
+  import { inject, computed, type Ref} from 'vue';
+  import { cn } from '@/lib/utils';
+  
+  const props = defineProps<{ placeholder?: string, class?: string }>()
+  const selectedValue = inject<Ref<string | number | undefined>>('selectSelectedValue');
+  const hasValue = computed(() => selectedValue?.value !== undefined && selectedValue.value !== '' && selectedValue.value !== null)
+  </script>
+
+# file name: src/components/ui/Separator.vue ------------------------------------------
+<template>
+    <hr :class="cn('shrink-0 bg-border', orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]', props.class)" v_bind="$attrs" />
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  interface Props {
+    orientation?: 'horizontal' | 'vertical'
+    class?: string
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    orientation: 'horizontal'
+  })
+  </script>
+
+# file name: src/components/ui/Sheet.vue ------------------------------------------
+<template>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="open" @click.self="handleOverlayClick" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+          <div :class="cn('bg-card shadow-lg rounded-lg m-4 relative', props.dialogClass)" v_bind="$attrs" role="dialog" aria-modal="true">
+            <slot />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  import { watch, onUnmounted } from 'vue';
+  
+  interface Props {
+    open: boolean;
+    dialogClass?: string; // For styling the inner dialog panel
+    persistent?: boolean; // If true, clicking overlay doesn't close
+  }
+  const props = defineProps<Props>();
+  const emit = defineEmits(['update:open']);
+  
+  const handleOverlayClick = () => {
+    if (!props.persistent) {
+      emit('update:open', false);
+    }
+  }
+  
+  watch(() => props.open, (isOpen) => {
+    if (typeof document !== 'undefined') {
+      if (isOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+  }, { immediate: true });
+  
+  onUnmounted(() => {
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = '';
+    }
+  });
+  </script>
+  <style scoped>
+  .fade-enter-active, .fade-leave-active {
+    transition: opacity 0.2s ease-in-out;
+  }
+  .fade-enter-active .bg-card, .fade-leave-active .bg-card { /* Target inner dialog for scale/translate */
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  }
+  
+  .fade-enter-from, .fade-leave-to {
+    opacity: 0;
+  }
+  .fade-enter-from .bg-card, .fade-leave-to .bg-card {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  </style>
+
+# file name: src/components/ui/SheetContent.vue ------------------------------------------
+<template>
+    <div :class="cn('p-6', props.class)"> <!-- Added default padding -->
+      <slot />
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/SheetDescription.vue ------------------------------------------
+<template>
+    <p :class="cn('text-sm text-muted-foreground', props.class)">
+      <slot />
+    </p>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/SheetFooter.vue ------------------------------------------
+<template>
+    <div :class="cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-6', props.class)"> <!-- Adjusted default style -->
+      <slot />
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/SheetHeader.vue ------------------------------------------
+<template>
+    <div :class="cn('flex flex-col space-y-2 text-center sm:text-left mb-4', props.class)"> <!-- Adjusted default style -->
+      <slot />
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/SheetTitle.vue ------------------------------------------
+<template>
+    <h2 :class="cn('text-lg font-semibold text-foreground', props.class)"> <!-- Adjusted default style -->
+      <slot />
+    </h2>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/Table.vue ------------------------------------------
+<template>
+    <div class="relative w-full overflow-auto">
+      <table :class="cn('w-full caption-bottom text-sm', props.class)" v_bind="$attrs">
+        <slot />
+      </table>
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/TableBody.vue ------------------------------------------
+<template>
+    <tbody :class="cn('[&_tr:last-child]:border-0', props.class)" v_bind="$attrs">
+      <slot />
+    </tbody>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/TableCell.vue ------------------------------------------
+<template>
+    <td :class="cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
+      <slot />
+    </td>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/TableHead.vue ------------------------------------------
+<template>
+    <th :class="cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
+      <slot />
+    </th>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/TableHeader.vue ------------------------------------------
+<template>
+    <thead :class="cn('[&_tr]:border-b', props.class)" v_bind="$attrs">
+      <slot />
+    </thead>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/components/ui/TableParts.vue ------------------------------------------
+<!-- src/components/ui/Table.vue -->
+<template>
+    <div class="relative w-full overflow-auto">
+      <table :class="cn('w-full caption-bottom text-sm', props.class)" v_bind="$attrs">
+        <slot />
+      </table>
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/TableHeader.vue -->
+  <template>
+    <thead :class="cn('[&_tr]:border-b', props.class)" v_bind="$attrs">
+      <slot />
+    </thead>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/TableBody.vue -->
+  <template>
+    <tbody :class="cn('[&_tr:last-child]:border-0', props.class)" v_bind="$attrs">
+      <slot />
+    </tbody>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/TableRow.vue -->
+  <template>
+    <tr :class="cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', props.class)" v_bind="$attrs">
+      <slot />
+    </tr>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/TableHead.vue -->
+  <template>
+    <th :class="cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
+      <slot />
+    </th>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/TableCell.vue -->
+  <template>
+    <td :class="cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', props.class)" v_bind="$attrs">
+      <slot />
+    </td>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+  
+  <!-- src/components/ui/Badge.vue -->
+  <template>
+    <div :class="badgeVariants({ variant, class: props.class })" v_bind="$attrs">
+      <slot />
+    </div>
+  </template>
+  <script setup lang="ts">
+  import { cva, type VariantProps } from 'class-variance-authority'
+  import { cn } from '@/lib/utils'
+  
+  const badgeVariants = cva(
+    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+    {
+      variants: {
+        variant: {
+          default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+          secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+          outline: "text-foreground",
+        },
+      },
+      defaultVariants: {
+        variant: "default",
+      },
+    }
+  )
+  type BadgeProps = VariantProps<typeof badgeVariants>
+  interface Props {
+    variant?: BadgeProps["variant"]
+    class?: string
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    variant: 'default'
+  })
+  </script>
+  
+  <!-- src/components/ui/Separator.vue -->
+  <template>
+    <hr :class="cn('shrink-0 bg-border', orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]', props.class)" v_bind="$attrs" />
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  interface Props {
+    orientation?: 'horizontal' | 'vertical'
+    class?: string
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    orientation: 'horizontal'
+  })
+  </script>
+  
+  <!-- src/components/ui/SheetParts.vue (Simplified Modal) -->
+  <!-- Create Sheet.vue, SheetContent.vue, SheetHeader.vue, SheetTitle.vue, SheetDescription.vue, SheetFooter.vue -->
+  <!-- Example: src/components/ui/Sheet.vue (Basic Modal) -->
+  <template>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="open" @click.self="handleOverlayClick" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div :class="cn('bg-card p-6 shadow-lg rounded-lg sm:max-w-lg w-[90vw] m-4', props.class)" v_bind="$attrs" role="dialog" aria-modal="true">
+            <slot />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  import { watch } from 'vue';
+  
+  interface Props {
+    open: boolean;
+    class?: string;
+    persistent?: boolean; // If true, clicking overlay doesn't close
+  }
+  const props = defineProps<Props>();
+  const emit = defineEmits(['update:open']);
+  
+  const handleOverlayClick = () => {
+    if (!props.persistent) {
+      emit('update:open', false);
+    }
+  }
+  
+  watch(() => props.open, (isOpen) => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  });
+  // Ensure body overflow is reset on unmount if modal was open
+  import { onUnmounted } from 'vue';
+  onUnmounted(() => {
+    document.body.style.overflow = '';
+  });
+  </script>
+  <style scoped>
+  .fade-enter-active, .fade-leave-active {
+    transition: opacity 0.3s ease;
+  }
+  .fade-enter-from, .fade-leave-to {
+    opacity: 0;
+  }
+  </style>
+  
+  <!-- src/components/ui/SheetContent.vue (Slot wrapper basically) -->
+  <template><div :class="props.class"><slot /></div></template>
+  <script setup lang="ts">const props = defineProps<{ class?: string }>();</script>
+  
+  <!-- src/components/ui/SheetHeader.vue -->
+  <template><div :class="cn('mb-6', props.class)"><slot /></div></template>
+  <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
+  
+  <!-- src/components/ui/SheetTitle.vue -->
+  <template><h2 :class="cn('text-2xl font-bold', props.class)"><slot /></h2></template>
+  <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
+  
+  <!-- src/components/ui/SheetDescription.vue -->
+  <template><p :class="cn('text-muted-foreground', props.class)"><slot /></p></template>
+  <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
+  
+  <!-- src/components/ui/SheetFooter.vue -->
+  <template><div :class="cn('mt-8 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', props.class)"><slot /></div></template>
+  <script setup lang="ts">import { cn } from '@/lib/utils'; const props = defineProps<{ class?: string }>();</script>
+
+# file name: src/components/ui/TableRow.vue ------------------------------------------
+<template>
+    <tr :class="cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', props.class)" v_bind="$attrs">
+      <slot />
+    </tr>
+  </template>
+  <script setup lang="ts">
+  import { cn } from '@/lib/utils';
+  const props = defineProps<{ class?: string }>();
+  </script>
+
+# file name: src/lib/utils.ts ------------------------------------------
+// src/lib/utils.ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function formatPrice(price: number | null | undefined): string {
+  if (price === null || price === undefined) return "N/A";
+  // Puedes decidir si usar toFixed(2) si los precios pueden tener decimales
+  return `$${price.toFixed(2)}`;
+}
+
+// Helper to generate unique IDs, useful if data doesn't have them
+export function generateId(): string {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+# file name: src/stores/stockStore.ts ------------------------------------------
+// src/stores/stockStore.ts
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import type { StockAction } from '@/types/stock-action'
+import { generateId } from '@/lib/utils'  
+
+export const useStockStore = defineStore('stock', () => {
+  const stockActions = ref<StockAction[]>([])
+  const isLoading = ref(false)
+  const error = ref<Error | null>(null)
+
+  async function fetchStockActions() {
+    isLoading.value = true
+    error.value = null
+    try {
+      const res = await fetch("http://localhost:8080/stocks", {
+        cache: "no-store", // Standard fetch cache option
+      });
+      if (!res.ok) {
+        throw new Error(`Error fetching /stocks: ${res.status}`);
+      }
+      const rawData: Omit<StockAction, "id">[] = await res.json();
+      stockActions.value = rawData.map(item => ({
+        ...item,
+        id: generateId(),
+      }));
+    } catch (e) {
+      error.value = e as Error
+      console.error("Failed to fetch stock actions:", e)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  return {
+    stockActions,
+    isLoading,
+    error,
+    fetchStockActions,
+  }
+})
+
+# file name: src/types/stock-action.ts ------------------------------------------
+// src/types/stock-action.ts
+export interface StockAction {
+  id: string; 
+  action: string;
+  brokerage: string;
+  company: string;
+  rating_from: string | null;
+  rating_to: string;
+  target_from: number | null;
+  target_to: number | null;   
+  ticker: string;
+  time: string; 
+  last_updated: string; 
+  rank: number;         
+  score: number;        
+  sentiment: number;    
+  spot: number;         
+  upside: number;       
+}
+
+# file name: src/views/HomePage.vue ------------------------------------------
+<template>
+  <main class="min-h-screen bg-background">
+    <div v-if="stockStore.isLoading" class="container mx-auto py-6 text-center">Loading data...</div>
+    <div v-else-if="stockStore.error" class="container mx-auto py-6 text-center text-red-500">
+      Failed to load data: {{ stockStore.error.message }}
+    </div>
+    <StockActionsClient v-else :initial-data="stockStore.stockActions" />
+  </main>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import StockActionsClient from "@/components/stock-actions/StockActionsClient.vue"
+import { useStockStore } from '@/stores/stockStore'
+
+const stockStore = useStockStore()
+
+onMounted(() => {
+  if (stockStore.stockActions.length === 0) { // Fetch only if not already loaded
+    stockStore.fetchStockActions()
+  }
+})
+</script>
+
+# file name: src/App.vue ------------------------------------------
+<template>
+  <RouterView />
+  <Toaster richColors position="top-right" />
+</template>
+
+<script setup lang="ts">
+import { RouterView } from 'vue-router'
+</script>
+
+# file name: src/main.ts ------------------------------------------
+// src/main.ts
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import { VueQueryPlugin } from "@tanstack/vue-query"
+import App from './App.vue'
+import router from './router'
+import './assets/main.css' // Tailwind CSS / global styles
+import { Toaster } from 'vue-sonner'
+
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+app.use(VueQueryPlugin)
+
+// Register vue-sonner Toaster globally or use it in App.vue
+app.component('Toaster', Toaster)
+
+
+app.mount('#app')
+
+# file name: src/router.ts ------------------------------------------
+// src/router.ts
+import { createRouter, createWebHistory } from 'vue-router'
+import HomePage from '@/views/HomePage.vue'
+
+const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: HomePage,
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes,
+})
+
+export default router
+
+# file name: package.json ------------------------------------------
+{
+  "name": "stock-action-insights",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "@tanstack/vue-query": "^5.76.2",
+    "@tanstack/vue-table": "^8.21.3",
+    "axios": "^1.9.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
+    "headlessui": "^0.0.0",
+    "lucide-vue-next": "^0.511.0",
+    "pinia": "^3.0.2",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss-animate": "^1.0.7",
+    "v-calendar": "^3.1.2",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1",
+    "vue-sonner": "^2.0.0",
+    "zod": "^3.25.23"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/eslint-config-typescript": "^14.5.0",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.27.0",
+    "eslint-plugin-vue": "^10.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.8"
+  }
+}
+
+

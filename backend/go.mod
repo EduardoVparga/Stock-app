@@ -1,4 +1,4 @@
-module get_apidata
+module stock-app
 
 go 1.24.3
 
