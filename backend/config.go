@@ -15,23 +15,20 @@ func init() {
 }
 
 type APIConfig struct {
-	URL      string
-	Bearer   string
-	AVAPIKey string // clave para Alpha Vantage
+	URL    string
+	Bearer string
 }
 
 func LoadAPIConfig() APIConfig {
 	url := os.Getenv("URL_APIDATA")
 	bearer := os.Getenv("BEARER_APIDATA")
-	avKey := os.Getenv("AV_API_KEY")
 
-	if url == "" || bearer == "" || avKey == "" {
-		log.Fatal("Debe definir URL_APIDATA, BEARER_APIDATA y AV_API_KEY en el entorno")
+	if url == "" || bearer == "" {
+		log.Fatal("Debe definir URL_APIDATA y BEARER_APIDATA en el entorno")
 	}
 	return APIConfig{
-		URL:      url,
-		Bearer:   bearer,
-		AVAPIKey: avKey,
+		URL:    url,
+		Bearer: bearer,
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +55,7 @@ type apiResponse struct {
 
 // FetchAll recorre todas las páginas de la API y devuelve todos los ítems,
 // pero además, para cada Item llama a FetchSpotPrice y rellena SpotPrice.
-func FetchAll(ctx context.Context, cfg APIConfig, avAPIKey string) ([]Item, error) {
+func FetchAll(ctx context.Context, cfg APIConfig) ([]Item, error) {
 	var all []Item
 	next := ""
 
@@ -89,18 +88,6 @@ func FetchAll(ctx context.Context, cfg APIConfig, avAPIKey string) ([]Item, erro
 			return nil, fmt.Errorf("parseando JSON: %w", err)
 		}
 
-		// Por cada ítem, obtener el spot price
-		for i := range r.Items {
-			sp, err := FetchSpotPrice(r.Items[i].Ticker, avAPIKey)
-			if err != nil {
-				// Si hay error, dejamos SpotPrice en 0 y seguimos
-				log.Printf("warning: no se pudo obtener spot price para %s: %v\n", r.Items[i].Ticker, err)
-				r.Items[i].SpotPrice = 0
-			} else {
-				r.Items[i].SpotPrice = sp
-			}
-		}
-
 		all = append(all, r.Items...)
 		if r.NextPage == "" {
 			break
@@ -110,68 +97,4 @@ func FetchAll(ctx context.Context, cfg APIConfig, avAPIKey string) ([]Item, erro
 
 	log.Printf("Registros obtenidos: %d\n", len(all))
 	return all, nil
-}
-
-// FetchSpotPrice llama al endpoint de Intraday de Alpha Vantage y devuelve
-// el “close” más reciente (último timestamp) como float64.
-// endpoint: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=<TICKER>&interval=5min&apikey=<API-KEY>
-func FetchSpotPrice(ticker, apiKey string) (float64, error) {
-	// Construir URL
-	url := fmt.Sprintf(
-		"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=%s&interval=5min&outputsize=compact&apikey=%s",
-		ticker, apiKey,
-	)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return 0, fmt.Errorf("error en GET AlphaVantage: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("status %s: %s", resp.Status, string(b))
-	}
-
-	body, _ := io.ReadAll(resp.Body)
-	// Estructura parcial para parsear únicamente “Time Series (5min)”
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return 0, fmt.Errorf("no se pudo leer JSON intraday: %w", err)
-	}
-
-	// La clave exacta es "Time Series (5min)"
-	var tsField json.RawMessage
-	if val, ok := raw["Time Series (5min)"]; ok {
-		tsField = val
-	} else {
-		return 0, fmt.Errorf("respuesta no contiene Time Series (5min)")
-	}
-
-	// Deserializar cada timestamp → { "1. open": "...", "2. high": "...", ... }
-	var tsMap map[string]map[string]string
-	if err := json.Unmarshal(tsField, &tsMap); err != nil {
-		return 0, fmt.Errorf("error parseando Time Series (5min): %w", err)
-	}
-
-	// Los keys de tsMap son strings como "2025-06-05 19:20:00".
-	// Tomamos el timestamp mayor (más reciente).
-	timestamps := make([]string, 0, len(tsMap))
-	for k := range tsMap {
-		timestamps = append(timestamps, k)
-	}
-	sort.Strings(timestamps) // orden lexicográfico equivale a orden cronológico aquí
-
-	if len(timestamps) == 0 {
-		return 0, fmt.Errorf("sin datos en Time Series (5min)")
-	}
-
-	last := timestamps[len(timestamps)-1] // e.g. "2025-06-05 19:20:00"
-	closeStr := tsMap[last]["4. close"]   // e.g. "1.0000"
-	closeVal, err := strconv.ParseFloat(closeStr, 64)
-	if err != nil {
-		return 0, fmt.Errorf("no se pudo convertir close %q: %w", closeStr, err)
-	}
-
-	return closeVal, nil
 }

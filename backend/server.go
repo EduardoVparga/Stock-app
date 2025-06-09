@@ -6,18 +6,17 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/cors"
 )
 
 // ServidorHTTP expone un endpoint GET /stocks con la data de la tabla StockInfo
-func ServidorHTTP(ctx context.Context, conn *pgx.Conn) {
+func ServidorHTTP(ctx context.Context, conn *pgxpool.Pool) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stocks", func(w http.ResponseWriter, r *http.Request) {
 		rows, err := conn.Query(ctx, `
-            SELECT action, brokerage, company, rating_from, rating_to,
-                   target_from, target_to, ticker, time
-            FROM StockInfo ORDER BY time DESC
+            SELECT * FROM stock_scores
+			ORDER BY rank;
         `)
 		if err != nil {
 			http.Error(w, "Error al consultar la base de datos", http.StatusInternalServerError)

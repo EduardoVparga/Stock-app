@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func main() {
@@ -18,50 +18,46 @@ func main() {
 		dbCfg.User, dbCfg.Pass, dbCfg.Host, dbCfg.Port, dbCfg.Name, dbCfg.SSLMode,
 	)
 	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, dsn)
+	// Usar pgxpool para manejar conexiones concurrentes
+	pool, err := pgxpool.Connect(ctx, dsn)
 	if err != nil {
 		log.Fatalf("No se pudo conectar a la BD: %v", err)
 	}
-	defer conn.Close(ctx)
+	defer pool.Close()
 
-	if err := EnsureTable(ctx, conn); err != nil {
-		log.Fatalf("Error creando tabla StockInfo: %v", err)
-	}
-	if err := EnsureHistoryTable(ctx, conn); err != nil {
-		log.Fatalf("Error creando tabla de historial: %v", err)
-	}
-
-	// Verificar antes de consultar API
-	lastLoad, err := LastLoadTime(ctx, conn)
+	var lastLoad time.Time
+	err = pool.QueryRow(ctx, `SELECT LastLoadTime()`).Scan(&lastLoad)
 	if err != nil {
-		log.Printf("Error obteniendo última carga: %v", err)
+		log.Fatalf("error obteniendo última carga: %v", err)
 	}
+
+	go watchForUpdates(ctx, pool, lastLoad)
+
 	if !lastLoad.IsZero() && time.Since(lastLoad) < time.Hour {
 		log.Println("Última carga hace menos de una hora. Saltando actualización.")
-		ServidorHTTP(ctx, conn)
+		ServidorHTTP(ctx, pool)
 		return
 	}
 
-	// Archivar y limpiar solo si corresponde
-	if err := ArchiveCurrent(ctx, conn); err != nil {
-		log.Fatalf("Error archivando datos: %v", err)
-	}
-	if err := TruncateCurrent(ctx, conn); err != nil {
-		log.Fatalf("Error truncando tabla StockInfo: %v", err)
+	if _, err := pool.Exec(ctx, `CALL ArchiveAndTruncate()`); err != nil {
+		log.Fatalf("error en ArchiveAndTruncate: %v", err)
 	}
 
-	// Solo ahora consultar todas las páginas de la API
-	items, err := FetchAll(ctx, apiCfg, apiCfg.AVAPIKey)
+	items, err := FetchAll(ctx, apiCfg)
 	if err != nil {
 		log.Fatalf("Error al extraer datos: %v", err)
 	}
 
 	loadedAt := time.Now()
-	if err := InsertItems(ctx, conn, items, loadedAt); err != nil {
+	if err := InsertItems(ctx, pool, items, loadedAt); err != nil {
 		log.Fatalf("Error insertando datos: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `CALL sync_symbols()`); err != nil {
+		log.Fatalf("error en sync_symbols: %v", err)
 	}
 
 	log.Println("✅ Datos actualizados y almacenados en StockInfo")
 
-	ServidorHTTP(ctx, conn)
+	ServidorHTTP(ctx, pool)
 }
